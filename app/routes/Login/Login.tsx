@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Switch, Image, StyleSheet } from "react-native";
 import axios from 'axios';
+import {useLoginMutation} from "@/app/api/auth/auth.api";
 
 const LoginScreen = () => {
+    const [login, {isLoading, isError, isSuccess}] = useLoginMutation();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [checked, setChecked] = useState(false);
@@ -12,23 +14,13 @@ const LoginScreen = () => {
     // });
 
     const onSubmitFormHandler = async () => {
+        // e.preventDefault();
+        // if (!email || !password) {
+        //     alert("Please fill in all fields");
+        //     return;
+        // }
         try {
-            console.log("try");
-            const formData = new URLSearchParams();
-            formData.append("username", "bcrepin@supinfo.com");
-            formData.append("password", "Soleil123!");
-            formData.append("grant_type", "password");
-
-            const response = await axios.post(
-                "http://10.0.2.2:5263/connect/token",
-                formData,
-                {
-                    headers: {
-                        "Content-Type": "application/x-www-form-urlencoded",
-                    },
-                }
-            );
-
+            const response = await login({username: email, password: password, grant_type: 'password'});
             if (response.status === 200 || response.status === 201) {
                 console.log("Success", response.data);
                 alert("Login successful");
@@ -36,9 +28,31 @@ const LoginScreen = () => {
                 throw new Error(`An error has occurred: ${response.status} - ${response.statusText}`);
             }
         } catch (error) {
-            console.error("Fetch error:", error);
-            alert("An error has occurred");
+            console.log('Error', error);
         }
+
+        // try {
+        //     console.log("try");
+        //     const formData = new URLSearchParams();
+        //     formData.append("username", "bcrepin@supinfo.com");
+        //     formData.append("password", "Soleil123!");
+        //     formData.append("grant_type", "password");
+        //
+        //     const response = await axios.post(
+        //         "http://10.0.2.2:5263/connect/token",
+        //         formData,
+        //         {
+        //             headers: {
+        //                 "Content-Type": "application/x-www-form-urlencoded",
+        //             },
+        //         }
+        //     );
+        //
+        //
+        // } catch (error) {
+        //     console.error("Fetch error:", error);
+        //     alert("An error has occurred");
+        // }
     };
 
     return (
