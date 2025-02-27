@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Controller } from "react-hook-form";
 import InputField from "./InputField";
 
@@ -12,19 +12,31 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ control, handleSubmit, errors, onSubmit }) => (
   <View style={styles.formContainer}>
-
     <Controller
       control={control}
       name="email"
       render={({ field: { onChange, value } }) => (
-        <InputField label="Email" placeholder="Email" value={value} onChangeText={onChange} error={errors.email?.message} />
+        <InputField
+          label="Email"
+          placeholder="Email"
+          value={value}
+          onChangeText={onChange}
+          error={errors.email?.message}
+        />
       )}
     />
     <Controller
       control={control}
       name="password"
       render={({ field: { onChange, value } }) => (
-        <InputField label="Password" placeholder="Password" secureTextEntry value={value} onChangeText={onChange} error={errors.password?.message} />
+        <InputField
+          label="Password"
+          placeholder="Password"
+          secureTextEntry
+          value={value}
+          onChangeText={onChange}
+          error={errors.password?.message}
+        />
       )}
     />
 

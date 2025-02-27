@@ -1,16 +1,30 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import axios from "axios";
-import Register from "./components/Register";
-import Login from "./components/Login";
+import Register from "./components/Connexion/Register";
+import Login from "./components/Connexion/Login";
 import * as yup from "yup";
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useNavigation, NavigationProp } from '@react-navigation/native'; // Ajoute NavigationProp ici
+import Nav from './Nav'; // Assurez-vous que ce chemin est correct
+
+const Stack = createNativeStackNavigator();
+
+// Définit les types pour la navigation
+type RootStackParamList = {
+  Home: undefined;
+  Nav: undefined;
+};
 
 // Schéma de validation pour l'inscription et la connexion
 const signInSchema = yup.object().shape({
-  email: yup.string().email("Email invalide").required("Email obligatoire"),
-  password: yup.string().min(6, "Min. 6 caractères").required("Mot de passe obligatoire"),
+  // TODO : A remettre en place
+  // email: yup.string().email("Email invalide").required("Email obligatoire"),
+  // password: yup.string().min(6, "Min. 6 caractères").required("Mot de passe obligatoire"),
+  email: yup.string().min(0, "Email invalide").required("Email obligatoire"),
+  password: yup.string().min(0, "Min. 6 caractères").required("Mot de passe obligatoire"),
 });
 
 const signUpSchema = yup.object().shape({
@@ -31,6 +45,7 @@ interface FormData {
 }
 
 export default function App() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>(); // Utilise les types ici
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,29 +59,9 @@ export default function App() {
     resolver: yupResolver(isSignUp ? signUpSchema : signInSchema),
   });
 
-  const onSubmit = async (data: FormData) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const url = isSignUp
-        ? "http://10.0.2.2:5263/connect/register"
-        : "http://10.0.2.2:5263/connect/login";
-
-      const response = await axios.post(url, data, {
-        headers: {
-          "Content-Type": "application/json",
-          "Accept-Language": "fr",
-        },
-      });
-
-      Alert.alert("Succès", isSignUp ? "Inscription réussie !" : "Connexion réussie !");
-      reset(); // Réinitialiser les champs après succès
-    } catch (error: any) {
-      setError(error.response?.data?.message || "Une erreur est survenue.");
-    } finally {
-      setIsLoading(false);
-    }
+  const onSubmit = (data: FormData) => {
+    console.log(data);
+    navigation.navigate('Nav'); // Naviguer vers Nav directement sans validation
   };
 
   return (
