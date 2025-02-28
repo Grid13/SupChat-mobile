@@ -1,16 +1,16 @@
-import React from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StyleSheet } from 'react-native';
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { View } from "react-native";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import ChatScreen from './components/Message/ChatScreen';
+import ChatScreen from "../components/Message/ChatScreen";
+import PlaceholderScreen from "../components/shared/placeholder";
+import Home from "../routes/Home";
 
 const Tab = createBottomTabNavigator();
 
-const PlaceholderScreen: React.FC = () => <View style={styles.container}><Text>Coming Soon...</Text></View>;
-
-const TabNavigator: React.FC = () => {
+const MainNavigator = () => {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator>
+      <Tab.Screen name="Login" component={Home} />
       <Tab.Screen
         name="Messages"
         component={ChatScreen}
@@ -25,12 +25,8 @@ const TabNavigator: React.FC = () => {
       <Tab.Screen name="Workspaces" component={PlaceholderScreen} options={{ tabBarIcon: ({ color, size }) => <Icon name="briefcase" size={size} color={color} /> }} />
       <Tab.Screen name="Activities" component={PlaceholderScreen} options={{ tabBarIcon: ({ color, size }) => <Icon name="bell" size={size} color={color} /> }} />
       <Tab.Screen name="Settings" component={PlaceholderScreen} options={{ tabBarIcon: ({ color, size }) => <Icon name="cog" size={size} color={color} /> }} />
+      {/*<Tab.Screen name="Register" component={Register} />*/}
     </Tab.Navigator>
   );
-};
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-});
-
-export default TabNavigator;
+}
+export default MainNavigator;
