@@ -1,12 +1,5 @@
-import { NavigationIndependentTree } from "@react-navigation/core";
-import AppNavigator from "./navigation/AppNavigator";
+import { Redirect } from 'expo-router';
 
-const App = () => {
-  return (
-    <NavigationIndependentTree>
-      <AppNavigator />;
-    </NavigationIndependentTree>
-  );
-};
-
-export default App;
+export default function Index() {
+  return <Redirect href="/Nav" />;
+}

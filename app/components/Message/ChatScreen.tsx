@@ -24,7 +24,6 @@ const ChatScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Header />
       <ScrollView
         style={styles.chatContainer}
         ref={scrollViewRef}

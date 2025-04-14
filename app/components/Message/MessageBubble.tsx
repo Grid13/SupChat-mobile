@@ -16,7 +16,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ text, time, isSender, ava
           <Text style={[styles.time, isSender ? styles.senderTime : styles.receiverTime]}>{time}</Text>
         </View>
         <View style={[styles.bubble, isSender ? styles.senderBubble : styles.receiverBubble]}>
-          <Text style={styles.text}>{text}</Text>
+          <Text style={[styles.text, isSender ? { color: 'white' } : { color: 'black' }]}>{text}</Text>
         </View>
       </View>
       {isSender && avatar && <Image source={{ uri: avatar }} style={styles.avatar} />}
@@ -43,17 +43,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#6C8AF5', 
     borderTopRightRadius: 2, 
     borderBottomRightRadius: 15, 
-    borderBottomLeftRadius: 15 
+    borderBottomLeftRadius: 15,
   },
   receiverBubble: {
-    backgroundColor: '#F1F1F1', 
+    backgroundColor: '#EBEBEB', 
     borderTopLeftRadius: 2, 
     borderBottomLeftRadius: 15, 
     borderBottomRightRadius: 15 
   },
   text: { 
     fontSize: 16, 
-    color: 'white', 
+    color: 'white', // Default color for sender, overridden dynamically
     flexWrap: 'wrap', 
     textAlign: 'left',
   },

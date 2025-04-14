@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 
 interface InputFieldProps {
-  label: string;
+  label?: string; // 🔁 Désormais optionnel
   placeholder: string;
   value: string;
   onChangeText: (text: string) => void;
@@ -20,13 +20,14 @@ const InputField: React.FC<InputFieldProps> = ({
 }) => {
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
       <TextInput
         style={[styles.input, error ? styles.inputError : null]}
         placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={secureTextEntry}
+        placeholderTextColor="#999"
       />
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
@@ -34,17 +35,19 @@ const InputField: React.FC<InputFieldProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { marginBottom: 10 },
-  label: { fontSize: 16, fontWeight: "bold", marginBottom: 5 },
+  container: { marginBottom: 12, width: "100%" },
+  label: { fontSize: 16, fontWeight: "bold", marginBottom: 6 },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
-    padding: 10,
-    borderRadius: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 6,
     fontSize: 16,
+    backgroundColor: "#fff",
   },
   inputError: { borderColor: "red" },
-  error: { color: "red", fontSize: 12, marginTop: 5 },
+  error: { color: "red", fontSize: 12, marginTop: 4 },
 });
 
 export default InputField;
