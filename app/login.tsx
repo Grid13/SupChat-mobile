@@ -12,7 +12,7 @@ const Login = () => {
 
   const handleLogin = () => {
     // Exemple de traitement
-    alert(`Email: ${email}\nPassword: ${password}`);
+    router.push("/(tabs)/Chat");
   };
 
   return (

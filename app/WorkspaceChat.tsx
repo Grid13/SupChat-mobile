@@ -10,6 +10,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MessageBubble from './components/Message/MessageBubble';
 import ChatInput from './components/Message/ChatInput';
+import DropdownMenu from './components/DropdownMenu';
+import WorkspaceInfoSheet from './components/WorkspaceInfoSheet';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 const WorkspaceChat = () => {
@@ -22,6 +24,9 @@ const WorkspaceChat = () => {
     { id: 2, text: "Hey !", time: "12h31", isSender: true },
     { id: 3, text: "Vous êtes dispo pour le projet ?", time: "12h33", isSender: false },
   ]);
+
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const handleSend = (text: string) => {
     const newMsg = {
@@ -41,14 +46,21 @@ const WorkspaceChat = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("./Nav/WorkspaceList")}>
-        <Ionicons name="arrow-back" size={24} />
+        <TouchableOpacity onPress={() => router.push("/(tabs)/Workspaces")}>
+          <Ionicons name="arrow-back" size={24} />
         </TouchableOpacity>
-        <Image source={{ uri: avatar as string }} style={styles.avatar} />
-        <View style={{ flex: 1 }}>
+
+        <TouchableOpacity onPress={() => setMenuVisible(true)}>
+          <Image source={{ uri: avatar as string }} style={styles.avatar} />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ flex: 1 }}>
           <Text style={styles.name}>{name}</Text>
-          <Text style={styles.status}>5 members • <Text style={{ color: 'green' }}>2 online</Text></Text>
-        </View>
+          <Text style={styles.status}>
+            5 members • <Text style={{ color: 'green' }}>2 online</Text>
+          </Text>
+        </TouchableOpacity>
+
         <Ionicons name="search" size={22} color="black" style={{ marginHorizontal: 10 }} />
         <MaterialIcons name="more-vert" size={22} color="black" />
       </View>
@@ -57,44 +69,59 @@ const WorkspaceChat = () => {
       <ScrollView ref={scrollViewRef} style={styles.chat}>
         <Text style={styles.dateLabel}>Today</Text>
         {messages.map((msg) => {
-  const isSender = msg.isSender;
-
-  return (
-    <View
-      key={msg.id}
-      style={{
-        flexDirection: "row",
-        justifyContent: isSender ? "flex-end" : "flex-start",
-        alignItems: "flex-end",
-        marginBottom: 8,
-      }}
-    >
-      {!isSender && (
-        <Image
-          source={{ uri: avatar as string }}
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 15,
-            marginRight: 8,
-            alignSelf: "center",
-            marginBottom: -12,
-          }}
-        />
-      )}
-
-      <MessageBubble
-        text={msg.text}
-        time={msg.time}
-        isSender={isSender}
-      />
-    </View>
-     );
-    })}
+          const isSender = msg.isSender;
+          return (
+            <View
+              key={msg.id}
+              style={{
+                flexDirection: "row",
+                justifyContent: isSender ? "flex-end" : "flex-start",
+                alignItems: "flex-end",
+                marginBottom: 8,
+              }}
+            >
+              {!isSender && (
+                <Image
+                  source={{ uri: avatar as string }}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 15,
+                    marginRight: 8,
+                    alignSelf: "flex-end",
+                  }}
+                />
+              )}
+              <MessageBubble
+                text={msg.text}
+                time={msg.time}
+                isSender={isSender}
+              />
+            </View>
+          );
+        })}
       </ScrollView>
 
-      {/* Chat Input */}
+      {/* Input */}
       <ChatInput onSend={handleSend} />
+
+      {/* Dropdown + Info Sheet */}
+      <DropdownMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        onViewInfo={() => {
+            setMenuVisible(false);
+            setShowInfo(true);
+        }}
+        />
+      <WorkspaceInfoSheet
+        visible={showInfo}
+        onClose={() => setShowInfo(false)}
+        workspaceName={name as string}
+        />
+
+
+
     </View>
   );
 };
@@ -110,22 +137,6 @@ const styles = StyleSheet.create({
   avatar: { width: 40, height: 40, borderRadius: 20, marginHorizontal: 10 },
   name: { fontWeight: "bold", fontSize: 16 },
   status: { fontSize: 12, color: "#555" },
-
-  sharedSection: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 10, paddingVertical: 5, gap: 10,
-  },
-  sharedAvatars: { flexDirection: "row" },
-  sharedImage: {
-    width: 30, height: 30, borderRadius: 6,
-    marginRight: -10, borderWidth: 2, borderColor: "#fff",
-  },
-  sharedText: { flex: 1, color: "#444", fontSize: 13 },
-  blockBtn: {
-    backgroundColor: "red", paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 6,
-  },
-
   chat: {
     flex: 1,
     padding: 10,
