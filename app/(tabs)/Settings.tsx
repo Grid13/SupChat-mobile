@@ -1,1 +1,1 @@
-export default function Settings() { return null; }
+export { default } from "../ProfileScreen";

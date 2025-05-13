@@ -1,20 +1,16 @@
-// import { configureStore } from "@reduxjs/toolkit";
-// import { api } from "../api/api";
+import { configureStore } from "@reduxjs/toolkit";
+import authReducer from "./authSlice";
 
-// export const store = configureStore({
-//   reducer: {
-//     // ...createRouterReducerMapObject(routerHistory),
-//     [api.reducerPath]: api.reducer,
-//     // app: appReducer,
-//     // snackbar: snackbarReducer,
-//     // modal: modalReducer,
-//   },
-//   middleware: (getDefaultMiddleware) =>
-//     getDefaultMiddleware({
-//       serializableCheck: false,
-//     })
-//       // .concat(thunk)
-//       // .concat(createRouterMiddleware(routerHistory))
-//       .concat(api.middleware),
-//   devTools: true,
-// });
+export const store = configureStore({
+  reducer: {
+    auth: authReducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }),
+  devTools: true,
+});
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,9 +6,12 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useSelector } from "react-redux";
+import { RootState } from "./store/store";
 
 type WorkspaceItem = {
   id: string;
@@ -18,106 +21,99 @@ type WorkspaceItem = {
   initials: string;
 };
 
-const classes: WorkspaceItem[] = [
-  {
-    id: "1",
-    title: "Points Communication",
-    subtitle: "Thierry henry",
-    color: "#6B8AFD",
-    initials: "📣",
-  },
-  {
-    id: "2",
-    title: "3PROJ",
-    subtitle: "Martin le goat, jb le raciste",
-    color: "#6A5ACD",
-    initials: "3",
-  },
-  {
-    id: "3",
-    title: "Chez adrien",
-    subtitle: "M. isabelle, Mr. czenanovitch",
-    color: "#1abc9c",
-    initials: "BD",
-  },
-];
-
-const teams: WorkspaceItem[] = [
-  {
-    id: "4",
-    title: "Supinfo Campus Lille",
-    subtitle: "Clement, Caroline ",
-    color: "#e74c3c",
-    initials: "SC",
-  },
-];
-
 const WorkspaceList: React.FC = () => {
-    const router = useRouter();
-  
-    const renderItem = ({ item }: { item: WorkspaceItem }) => (
-      <TouchableOpacity
-        style={styles.itemContainer}
-        onPress={() =>
-          router.push({
-            pathname: "/WorkspaceChat",
-            params: {
-              name: item.title,
-              avatar: "https://randomuser.me/api/portraits/women/10.jpg", // à personnaliser
-            },
-          })
-        }
-      >
-        <View style={[styles.badge, { backgroundColor: item.color }]}>
-          <Text style={styles.badgeText}>{item.initials}</Text>
-        </View>
-        <View style={styles.itemTextContainer}>
-          <Text style={styles.itemTitle}>{item.title}</Text>
-          <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  
-    return (
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.avatar}>
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>MP</Text>
-            </View>
-            <Text style={styles.headerTitle}>Équipes</Text>
-          </View>
-          <MaterialIcons name="menu" size={24} color="#000" />
-        </View>
-  
-        {/* Search */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#999" style={{ marginRight: 10 }} />
-          <TextInput placeholder="Rechercher" placeholderTextColor="#999" style={styles.searchInput} />
-        </View>
-  
-        {/* Sections */}
-        <Text style={styles.sectionTitle}>Classes</Text>
-        <FlatList
-          data={classes}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-        />
-  
-        <Text style={styles.sectionTitle}>Équipes</Text>
-        <FlatList
-          data={teams}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-        />
-      </View>
-    );
+  const router = useRouter();
+  const token = useSelector((state: RootState) => state.auth.token);
+  const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
+
+  const fetchWorkspaces = async () => {
+    try {
+      const response = await fetch("http://192.168.202.30:5263/api/Workspace", {
+        headers: {
+          Accept: "text/plain",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const text = await response.text();
+      const json = JSON.parse(text);
+
+      if (Array.isArray(json)) {
+        const transformed: WorkspaceItem[] = json.map((ws: any) => ({
+          id: String(ws.id),
+          title: ws.name || "Untitled",
+          subtitle: ws.description || "No description",
+          color: "#6B8AFD", // ou génère dynamiquement si tu veux
+          initials: ws.name?.slice(0, 2).toUpperCase() || "WS",
+        }));
+        setWorkspaces(transformed);
+      } else {
+        throw new Error("Unexpected response format");
+      }
+    } catch (err: any) {
+      console.error("Error fetching workspaces:", err);
+      Alert.alert("API Error", err.message || "Unable to load workspaces");
+    }
   };
-  
-  export default WorkspaceList;
+
+  useEffect(() => {
+    fetchWorkspaces();
+  }, []);
+
+  const renderItem = ({ item }: { item: WorkspaceItem }) => (
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() =>
+        router.push({
+          pathname: "/WorkspaceChat",
+          params: {
+            name: item.title,
+            avatar: "https://ui-avatars.com/api/?name=" + encodeURIComponent(item.title),
+          },
+        })
+      }
+    >
+      <View style={[styles.badge, { backgroundColor: item.color }]}>
+        <Text style={styles.badgeText}>{item.initials}</Text>
+      </View>
+      <View style={styles.itemTextContainer}>
+        <Text style={styles.itemTitle}>{item.title}</Text>
+        <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={styles.avatar}>
+            <Text style={{ color: "#fff", fontWeight: "bold" }}>WS</Text>
+          </View>
+          <Text style={styles.headerTitle}>Workspaces</Text>
+        </View>
+        <MaterialIcons name="menu" size={24} color="#000" />
+      </View>
+
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#999" style={{ marginRight: 10 }} />
+        <TextInput placeholder="Rechercher" placeholderTextColor="#999" style={styles.searchInput} />
+      </View>
+
+      {/* Workspace list */}
+      <FlatList
+        data={workspaces}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        scrollEnabled={true}
+      />
+    </View>
+  );
+};
+
+export default WorkspaceList;
 
 const styles = StyleSheet.create({
   container: {
@@ -160,13 +156,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: "#000",
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-    marginTop: 20,
   },
   itemContainer: {
     flexDirection: "row",

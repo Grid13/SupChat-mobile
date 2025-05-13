@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,39 +9,18 @@ import {
   TextInput,
   Animated,
   Easing,
+  Alert,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
-
-const initialMessages = [
-  {
-    id: "1",
-    name: "NainnMaboul",
-    message: "peut être qu'on...",
-    time: "21h12",
-    avatar: "https://randomuser.me/api/portraits/women/10.jpg",
-    isOnline: true,
-  },
-  {
-    id: "2",
-    name: "Isabelle czenanovitch",
-    message: "Lorem ipsum dolor sit amet, c",
-    time: "21h12",
-    avatar: "https://randomuser.me/api/portraits/women/20.jpg",
-    isOnline: true,
-  },
-  ...new Array(8).fill(null).map((_, i) => ({
-    id: `${i + 3}`,
-    name: "NainnMaboul",
-    message: "peut être qu'on...",
-    time: "21h12",
-    avatar: `https://randomuser.me/api/portraits/women/${i + 30}.jpg`,
-    isOnline: true,
-  })),
-];
+import { useSelector } from "react-redux";
+import { RootState } from "./store/store"; // ajuste selon ton chemin
 
 const ChatList: React.FC = () => {
   const router = useRouter();
+  const token = useSelector((state: RootState) => state.auth.token);
+
+  const [users, setUsers] = useState<any[]>([]);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchText, setSearchText] = useState("");
   const animatedHeight = useState(new Animated.Value(0))[0];
@@ -59,16 +38,44 @@ const ChatList: React.FC = () => {
     });
   };
 
-  const filteredMessages = initialMessages.filter((msg) =>
-    msg.name.toLowerCase().includes(searchText.toLowerCase())
+  const fetchUsers = async () => {
+    if (!token) return;
+    try {
+      const response = await fetch("http://192.168.202.30:5263/api/User/Mp", {
+        headers: {
+          Accept: "text/plain",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const text = await response.text();
+      const json = JSON.parse(text);
+
+      if (Array.isArray(json)) {
+        setUsers(json);
+      } else {
+        throw new Error("Unexpected response format");
+      }
+    } catch (err: any) {
+      console.error("Error fetching users:", err);
+      Alert.alert("API Error", err.message || "Failed to fetch users");
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const filteredUsers = users.filter((user) =>
+    user.firstName?.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const handlePress = (item: any) => {
+  const handlePress = (user: any) => {
     router.push({
       pathname: "/ChatScreen",
       params: {
-        name: item.name,
-        avatar: item.avatar,
+        name: user.firstName,
+        avatar: user.image,
       },
     });
   };
@@ -76,13 +83,15 @@ const ChatList: React.FC = () => {
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity onPress={() => handlePress(item)}>
       <View style={styles.messageRow}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        {item.isOnline && <View style={styles.onlineDot} />}
+        <Image
+          source={{ uri: item.image || "https://randomuser.me/api/portraits/women/10.jpg" }}
+          style={styles.avatar}
+        />
+        {item.status === "Online" && <View style={styles.onlineDot} />}
         <View style={styles.messageContent}>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.preview}>{item.message}</Text>
+          <Text style={styles.name}>{item.firstName}</Text>
+          <Text style={styles.preview}>{item.statusLocalized}</Text>
         </View>
-        <Text style={styles.time}>{item.time}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -99,15 +108,15 @@ const ChatList: React.FC = () => {
       <Animated.View style={[styles.searchContainer, { height: animatedHeight }]}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher un nom..."
+          placeholder="Rechercher un prénom..."
           value={searchText}
           onChangeText={setSearchText}
         />
       </Animated.View>
 
       <FlatList
-        data={filteredMessages}
-        keyExtractor={(item) => item.id}
+        data={filteredUsers}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
@@ -149,7 +158,6 @@ const styles = StyleSheet.create({
   },
   name: { fontWeight: "bold", fontSize: 15 },
   preview: { color: "#666", fontSize: 13 },
-  time: { color: "#999", fontSize: 12, marginLeft: 5 },
   searchContainer: {
     overflow: "hidden",
   },
