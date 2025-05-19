@@ -12,6 +12,7 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSelector } from "react-redux";
 import { RootState } from "./store/store";
+import CreateWorkspaceModal from "./components/CreateWorkspaceModal";
 
 type WorkspaceItem = {
   id: string;
@@ -24,11 +25,14 @@ type WorkspaceItem = {
 const WorkspaceList: React.FC = () => {
   const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token);
+
   const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [searchText, setSearchText] = useState("");
 
   const fetchWorkspaces = async () => {
     try {
-      const response = await fetch("http://192.168.202.30:5263/api/Workspace", {
+      const response = await fetch("http://192.168.202.30:5263/api/Workspace/Joined", {
         headers: {
           Accept: "text/plain",
           Authorization: `Bearer ${token}`,
@@ -43,7 +47,7 @@ const WorkspaceList: React.FC = () => {
           id: String(ws.id),
           title: ws.name || "Untitled",
           subtitle: ws.description || "No description",
-          color: "#6B8AFD", // ou génère dynamiquement si tu veux
+          color: "#6B8AFD",
           initials: ws.name?.slice(0, 2).toUpperCase() || "WS",
         }));
         setWorkspaces(transformed);
@@ -60,6 +64,10 @@ const WorkspaceList: React.FC = () => {
     fetchWorkspaces();
   }, []);
 
+  const filteredWorkspaces = workspaces.filter((ws) =>
+    ws.title.toLowerCase().includes(searchText.toLowerCase())
+  );
+
   const renderItem = ({ item }: { item: WorkspaceItem }) => (
     <TouchableOpacity
       style={styles.itemContainer}
@@ -67,6 +75,7 @@ const WorkspaceList: React.FC = () => {
         router.push({
           pathname: "/WorkspaceChat",
           params: {
+            id: item.id, // Passe l'id du workspace
             name: item.title,
             avatar: "https://ui-avatars.com/api/?name=" + encodeURIComponent(item.title),
           },
@@ -80,6 +89,9 @@ const WorkspaceList: React.FC = () => {
         <Text style={styles.itemTitle}>{item.title}</Text>
         <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
       </View>
+      <TouchableOpacity onPress={() => Alert.alert("Options", `Options pour ${item.title}`)}>
+        <MaterialIcons name="more-vert" size={24} color="#000" />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -93,21 +105,36 @@ const WorkspaceList: React.FC = () => {
           </View>
           <Text style={styles.headerTitle}>Workspaces</Text>
         </View>
-        <MaterialIcons name="menu" size={24} color="#000" />
+        <TouchableOpacity onPress={() => setModalVisible(true)}>
+          <Ionicons name="add-circle-outline" size={28} color="#000" />
+        </TouchableOpacity>
       </View>
 
       {/* Search */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#999" style={{ marginRight: 10 }} />
-        <TextInput placeholder="Rechercher" placeholderTextColor="#999" style={styles.searchInput} />
+        <TextInput
+          placeholder="Rechercher"
+          placeholderTextColor="#999"
+          style={styles.searchInput}
+          value={searchText}
+          onChangeText={setSearchText}
+        />
       </View>
 
       {/* Workspace list */}
       <FlatList
-        data={workspaces}
+        data={filteredWorkspaces}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         scrollEnabled={true}
+      />
+
+      {/* Modal */}
+      <CreateWorkspaceModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onCreated={fetchWorkspaces}
       />
     </View>
   );
@@ -164,6 +191,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 12,
     alignItems: "center",
+    justifyContent: "space-between",
   },
   badge: {
     width: 45,

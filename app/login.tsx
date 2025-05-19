@@ -70,10 +70,12 @@ const Login = () => {
     }
   };
 
-  const handleGoogleRedirectLogin = async () => {
+  const handleGitHubRedirectLogin = async () => {
     try {
       const redirectUri = Linking.createURL("redirect");
-      const loginUrl = `http://192.168.202.30:5263/api/Authorization/login/google?returnUrl=${encodeURIComponent(redirectUri)}`;
+      const loginUrl = `http://192.168.202.30:5263/api/Authorization/login/github?returnUrl=${encodeURIComponent(
+        redirectUri
+      )}`;
 
       const result = await WebBrowser.openAuthSessionAsync(loginUrl, redirectUri);
 
@@ -81,16 +83,16 @@ const Login = () => {
         const url = new URL(result.url);
         const token = url.searchParams.get("token") || url.hash.split("=")[1];
         if (token) {
-          dispatch(loginSuccess({ user: { email: "google_user" }, token }));
+          dispatch(loginSuccess({ user: { email: "github_user" }, token }));
           router.push("/(tabs)/Chat");
         } else {
-          Alert.alert("Google Login", "No token found in response.");
+          Alert.alert("GitHub Login", "No token found in response.");
         }
       } else {
-        Alert.alert("Google Login", "Authentication cancelled or failed.");
+        Alert.alert("GitHub Login", "Authentication cancelled or failed.");
       }
     } catch (error: any) {
-      Alert.alert("Google Auth Error", error.message);
+      Alert.alert("GitHub Auth Error", error.message);
     }
   };
 
@@ -141,22 +143,12 @@ const Login = () => {
         </View>
 
         <View style={styles.socialRow}>
-          <TouchableOpacity
-            style={styles.socialButton}
-            onPress={handleGoogleRedirectLogin}
-          >
+          <TouchableOpacity style={styles.socialButton} onPress={handleGitHubRedirectLogin}>
             <Image
-              source={{ uri: "https://img.icons8.com/color/48/google-logo.png" }}
+              source={{ uri: "https://img.icons8.com/ios-filled/50/github.png" }}
               style={styles.socialIcon}
             />
-            <Text style={styles.socialText}>Google</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.socialButton}>
-            <Image
-              source={{ uri: "https://img.icons8.com/fluency/48/facebook-new.png" }}
-              style={styles.socialIcon}
-            />
-            <Text style={styles.socialText}>Facebook</Text>
+            <Text style={styles.socialText}>GitHub</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -253,11 +245,10 @@ const styles = StyleSheet.create({
   },
   socialRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     gap: 10,
   },
   socialButton: {
-    flex: 1,
     flexDirection: "row",
     borderWidth: 1,
     borderColor: "#000",
@@ -266,6 +257,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 10,
     gap: 6,
+    flex: 1,
   },
   socialIcon: {
     width: 20,

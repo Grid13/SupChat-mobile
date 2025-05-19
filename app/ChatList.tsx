@@ -71,14 +71,15 @@ const ChatList: React.FC = () => {
   );
 
   const handlePress = (user: any) => {
-    router.push({
-      pathname: "/ChatScreen",
-      params: {
-        name: user.firstName,
-        avatar: user.image,
-      },
-    });
-  };
+  router.push({
+    pathname: "/ChatScreen",
+    params: {
+      userId: user.id, 
+      name: user.firstName,
+      avatar: user.image,
+    },
+  });
+};
 
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity onPress={() => handlePress(item)}>
