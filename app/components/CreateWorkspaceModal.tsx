@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -7,10 +7,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
+  Image,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 import { RootState } from "../store/store";
+import { useRouter } from "expo-router";
 
 type Props = {
   visible: boolean;
@@ -18,15 +22,117 @@ type Props = {
   onCreated: () => void;
 };
 
+type AvailableWorkspace = {
+  id: number;
+  name: string;
+  image?: string | null;
+  visibility: string;
+  visibilityLocalized?: string;
+  ownerId: string;
+};
+
 const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) => {
   const token = useSelector((state: RootState) => state.auth.token);
+  const router = useRouter();
+
+  const [tab, setTab] = useState<"create" | "join">("create");
+
+  // Create tab state
   const [name, setName] = useState("");
   const [visibility, setVisibility] = useState<"Public" | "Private">("Public");
   const [loading, setLoading] = useState(false);
 
+  // Join tab state
+  const [available, setAvailable] = useState<AvailableWorkspace[]>([]);
+  const [loadingJoinList, setLoadingJoinList] = useState(false);
+
+  // On tab switch, reset state
+  useEffect(() => {
+    if (tab === "create") {
+      setName("");
+      setVisibility("Public");
+    } else {
+      // Charge la liste des workspaces à rejoindre
+      fetchAvailableWorkspaces();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  const fetchAvailableWorkspaces = async () => {
+    setLoadingJoinList(true);
+    try {
+      const response = await fetch("http://192.168.202.30:5263/api/Workspace/Available", {
+        headers: {
+          Accept: "text/plain",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const text = await response.text();
+      let json;
+      try { json = JSON.parse(text); } catch { json = []; }
+      let arr = Array.isArray(json)
+        ? json
+        : Array.isArray(json.value) ? json.value
+        : Array.isArray(json.valueOrDefault) ? json.valueOrDefault : [];
+      setAvailable(arr);
+    } catch (err) {
+      setAvailable([]);
+    } finally {
+      setLoadingJoinList(false);
+    }
+  };
+
+  const handleJoin = async (workspace: AvailableWorkspace) => {
+    Alert.alert(
+      "Rejoindre ce workspace ?",
+      `Tu vas rejoindre "${workspace.name}".`,
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Rejoindre",
+          onPress: async () => {
+            try {
+              setLoadingJoinList(true);
+              const res = await fetch(
+                `http://192.168.202.30:5263/api/Workspace/${workspace.id}/Join`,
+                {
+                  method: "POST",
+                  headers: {
+                    Accept: "text/plain",
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+              if (!res.ok) {
+                throw new Error("Erreur lors de la demande de rejoindre.");
+              }
+              Alert.alert("Tu as rejoint le workspace !", workspace.name);
+              onClose();
+              onCreated();
+              // Redirige sur le workspace nouvellement rejoint
+              setTimeout(() => {
+                router.push({
+                  pathname: "/WorkspaceChat",
+                  params: {
+                    id: String(workspace.id),
+                    name: workspace.name,
+                    avatar: workspace.image || "https://ui-avatars.com/api/?name=" + encodeURIComponent(workspace.name),
+                  },
+                });
+              }, 200);
+            } catch (err: any) {
+              Alert.alert("Erreur", err.message || "Impossible de rejoindre.");
+            } finally {
+              setLoadingJoinList(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const createWorkspace = async () => {
     if (!name.trim()) return Alert.alert("Champ requis", "Le nom est obligatoire");
-
     try {
       setLoading(true);
 
@@ -57,51 +163,122 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
     }
   };
 
+  const modalStyle = [
+  styles.modal,
+  tab === "join" && styles.modalJoin, // Si on est sur "join", on agrandit
+];
+
+
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={styles.title}>Nouveau Workspace</Text>
-
-          <TextInput
-            placeholder="Nom du workspace"
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-          />
-
-          <View style={styles.visibilityContainer}>
-            <Text style={styles.label}>Visibilité :</Text>
+        <View style={styles.overlay}>
+            <View style={modalStyle}>
+          {/* Tabs */}
+          <View style={styles.tabs}>
             <TouchableOpacity
-              style={[
-                styles.visibilityOption,
-                visibility === "Public" && styles.activeOption,
-              ]}
-              onPress={() => setVisibility("Public")}
+              style={[styles.tabBtn, tab === "create" && styles.activeTab]}
+              onPress={() => setTab("create")}
             >
-              <Text style={styles.optionText}>Public</Text>
+              <Text style={[styles.tabText, tab === "create" && styles.activeTabText]}>
+                Créer un workspace
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.visibilityOption,
-                visibility === "Private" && styles.activeOption,
-              ]}
-              onPress={() => setVisibility("Private")}
+              style={[styles.tabBtn, tab === "join" && styles.activeTab]}
+              onPress={() => setTab("join")}
             >
-              <Text style={styles.optionText}>Private</Text>
+              <Text style={[styles.tabText, tab === "join" && styles.activeTabText]}>
+                Rejoindre un workspace
+              </Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancel} onPress={onClose}>
-              <Text style={styles.cancelText}>Annuler</Text>
-            </TouchableOpacity>
+          {/* CREATE */}
+          {tab === "create" && (
+            <>
+              <Text style={styles.title}>Nouveau Workspace</Text>
+              <TextInput
+                placeholder="Nom du workspace"
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+              />
+              <View style={styles.visibilityContainer}>
+                <Text style={styles.label}>Visibilité :</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.visibilityOption,
+                    visibility === "Public" && styles.activeOption,
+                  ]}
+                  onPress={() => setVisibility("Public")}
+                >
+                  <Text style={styles.optionText}>Public</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.visibilityOption,
+                    visibility === "Private" && styles.activeOption,
+                  ]}
+                  onPress={() => setVisibility("Private")}
+                >
+                  <Text style={styles.optionText}>Private</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.actions}>
+                <TouchableOpacity style={styles.cancel} onPress={onClose}>
+                  <Text style={styles.cancelText}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.confirm} onPress={createWorkspace} disabled={loading}>
+                  <Ionicons name="add" size={18} color="#fff" />
+                  <Text style={styles.confirmText}>{loading ? "Création..." : "Créer"}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
-            <TouchableOpacity style={styles.confirm} onPress={createWorkspace} disabled={loading}>
-              <Ionicons name="add" size={18} color="#fff" />
-              <Text style={styles.confirmText}>{loading ? "Création..." : "Créer"}</Text>
-            </TouchableOpacity>
-          </View>
+          {/* JOIN */}
+          {tab === "join" && (
+            <View style={{ flex: 1, minHeight: 300 }}>
+              <Text style={styles.title}>Workspaces publics disponibles</Text>
+              {loadingJoinList ? (
+                <ActivityIndicator size="large" style={{ marginVertical: 20 }} />
+              ) : available.length === 0 ? (
+                <Text style={{ color: "#999", marginVertical: 16, textAlign: "center" }}>
+                  Aucun workspace public trouvé.
+                </Text>
+              ) : (
+                <ScrollView style={{ maxHeight: 290 }}>
+                  {available.map((ws) => (
+                    <TouchableOpacity
+                      key={ws.id}
+                      style={styles.wsItem}
+                      onPress={() => handleJoin(ws)}
+                    >
+                      <Image
+                        source={{
+                          uri:
+                            ws.image ||
+                            "https://ui-avatars.com/api/?name=" +
+                              encodeURIComponent(ws.name),
+                        }}
+                        style={styles.wsAvatar}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.wsName}>{ws.name}</Text>
+                        <Text style={styles.wsVisibility}>{ws.visibilityLocalized || ws.visibility}</Text>
+                      </View>
+                      <Ionicons name="arrow-forward" size={20} color="#4F8CFF" />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+              <View style={styles.actions}>
+                <TouchableOpacity style={styles.cancel} onPress={onClose}>
+                  <Text style={styles.cancelText}>Fermer</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
       </View>
     </Modal>
@@ -118,14 +295,49 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modal: {
-    width: "90%",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 20,
-    elevation: 10,
+  width: "93%",
+  backgroundColor: "#fff",
+  borderRadius: 12,
+  padding: 20,
+  elevation: 10,
+  minHeight: 280,
+  maxHeight: 480, // petite taille par défaut
+},
+modalJoin: {
+  minHeight: 400,   // ou plus selon besoin
+  maxHeight: 650,
+},
+
+    tabs: {
+    flexDirection: "row",
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+    flexWrap: "nowrap",   // <-- empêcher retour à la ligne
+    },
+
+    tabBtn: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+    flexWrap: "nowrap",   // <-- empêcher retour à la ligne
+    },
+
+    tabText: {
+    fontSize: 15,
+    color: "#777",
+    fontWeight: "600",
+    textAlign: "center",
+    },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderColor: "#4F8CFF",
+  },
+  activeTabText: {
+    color: "#4F8CFF",
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "bold",
     marginBottom: 16,
     textAlign: "center",
@@ -136,6 +348,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginBottom: 16,
+    color: "#000",
   },
   visibilityContainer: {
     flexDirection: "row",
@@ -153,6 +366,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 6,
+    marginHorizontal: 3,
   },
   activeOption: {
     backgroundColor: "#6B8AFD",
@@ -164,6 +378,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 18,
   },
   cancel: {
     padding: 10,
@@ -184,5 +399,30 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     marginLeft: 6,
+  },
+  wsItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 13,
+    backgroundColor: "#f3f7ff",
+    borderRadius: 8,
+    marginBottom: 9,
+    gap: 13,
+  },
+  wsAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    marginRight: 8,
+    backgroundColor: "#eee",
+  },
+  wsName: {
+    fontWeight: "600",
+    color: "#222",
+    fontSize: 15,
+  },
+  wsVisibility: {
+    fontSize: 12,
+    color: "#666",
   },
 });

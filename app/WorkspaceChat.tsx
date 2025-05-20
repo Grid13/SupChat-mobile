@@ -135,8 +135,9 @@ const WorkspaceChat = () => {
         try { json = JSON.parse(text); } catch { json = []; }
         // On gère le cas où la réponse est enveloppée dans un objet
         let messageArr = Array.isArray(json) ? json
-          : (Array.isArray(json.value) ? json.value : (Array.isArray(json.valueOrDefault) ? json.valueOrDefault : []));
-        // Regroupement par jour comme ChatScreen
+  :     (Array.isArray(json.value) ? json.value : (Array.isArray(json.valueOrDefault) ? json.valueOrDefault : []));
+        messageArr = messageArr.slice().reverse();
+        // Regroupement par jour comme ChatScreenlet me
         const formatTime = (dateString: string) => {
           const date = new Date(dateString);
           const hours = date.getHours().toString().padStart(2, "0");
