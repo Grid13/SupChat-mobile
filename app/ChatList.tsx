@@ -11,6 +11,7 @@ import {
   Easing,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import { useSelector } from "react-redux";
@@ -41,7 +42,7 @@ const ChatList: React.FC = () => {
   const fetchUsers = async () => {
     if (!token) return;
     try {
-      const response = await fetch("http://192.168.202.30:5263/api/User/Mp", {
+      const response = await fetch("http://192.168.163.30:5263/api/User/Mp", {
         headers: {
           Accept: "text/plain",
           Authorization: `Bearer ${token}`,
@@ -71,15 +72,15 @@ const ChatList: React.FC = () => {
   );
 
   const handlePress = (user: any) => {
-  router.push({
-    pathname: "/ChatScreen",
-    params: {
-      userId: user.id, 
-      name: user.firstName,
-      avatar: user.image,
-    },
-  });
-};
+    router.push({
+      pathname: "/ChatScreen",
+      params: {
+        userId: user.id,
+        name: user.firstName,
+        avatar: user.image,
+      },
+    });
+  };
 
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity onPress={() => handlePress(item)}>
@@ -98,77 +99,96 @@ const ChatList: React.FC = () => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
         <TouchableOpacity onPress={toggleSearch}>
           <Icon name="search" size={24} color="black" />
         </TouchableOpacity>
       </View>
-
-      <Animated.View style={[styles.searchContainer, { height: animatedHeight }]}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Rechercher un prénom..."
-          value={searchText}
-          onChangeText={setSearchText}
+      <View style={styles.container}>
+        <Animated.View style={[styles.searchContainer, { height: animatedHeight }]}> 
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Rechercher un prénom..."
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+        </Animated.View>
+        <FlatList
+          data={filteredUsers}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 30, paddingTop: 10 }}
+          showsVerticalScrollIndicator={false}
         />
-      </Animated.View>
-
-      <FlatList
-        data={filteredUsers}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FAFAFA", paddingHorizontal: 15 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FAFAFA",
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "#FAFAFA",
+    paddingHorizontal: 15,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
   },
-  headerTitle: { fontSize: 22, fontWeight: "bold" },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+  },
   messageRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 18,
     position: "relative",
   },
-  avatar: { width: 50, height: 50, borderRadius: 25 },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
   onlineDot: {
     position: "absolute",
-    left: 42,
-    top: 38,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "green",
-    borderWidth: 2,
-    borderColor: "white",
+    right: 8,
+    bottom: 8,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#34C759",
   },
   messageContent: {
-    flex: 1,
     marginLeft: 12,
+    flex: 1,
   },
-  name: { fontWeight: "bold", fontSize: 15 },
-  preview: { color: "#666", fontSize: 13 },
+  name: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  preview: {
+    fontSize: 14,
+    color: "#666",
+  },
   searchContainer: {
     overflow: "hidden",
   },
   searchInput: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFF",
     borderRadius: 8,
-    padding: 10,
+    paddingHorizontal: 12,
+    height: 40,
     marginBottom: 10,
-    borderColor: "#ccc",
-    borderWidth: 1,
   },
 });
 

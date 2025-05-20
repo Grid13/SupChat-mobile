@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSelector } from "react-redux";
@@ -32,12 +33,15 @@ const WorkspaceList: React.FC = () => {
 
   const fetchWorkspaces = async () => {
     try {
-      const response = await fetch("http://192.168.202.30:5263/api/Workspace/Joined", {
-        headers: {
-          Accept: "text/plain",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        "http://192.168.163.30:5263/api/Workspace/Joined",
+        {
+          headers: {
+            Accept: "text/plain",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       const text = await response.text();
       const json = JSON.parse(text);
@@ -75,9 +79,11 @@ const WorkspaceList: React.FC = () => {
         router.push({
           pathname: "/WorkspaceChat",
           params: {
-            id: item.id, // Passe l'id du workspace
+            id: item.id,
             name: item.title,
-            avatar: "https://ui-avatars.com/api/?name=" + encodeURIComponent(item.title),
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              item.title
+            )}`,
           },
         })
       }
@@ -89,14 +95,16 @@ const WorkspaceList: React.FC = () => {
         <Text style={styles.itemTitle}>{item.title}</Text>
         <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
       </View>
-      <TouchableOpacity onPress={() => Alert.alert("Options", `Options pour ${item.title}`)}>
+      <TouchableOpacity
+        onPress={() => Alert.alert("Options", `Options pour ${item.title}`)}
+      >
         <MaterialIcons name="more-vert" size={24} color="#000" />
       </TouchableOpacity>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -112,7 +120,12 @@ const WorkspaceList: React.FC = () => {
 
       {/* Search */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#999" style={{ marginRight: 10 }} />
+        <Ionicons
+          name="search"
+          size={20}
+          color="#999"
+          style={{ marginRight: 10 }}
+        />
         <TextInput
           placeholder="Rechercher"
           placeholderTextColor="#999"
@@ -127,7 +140,8 @@ const WorkspaceList: React.FC = () => {
         data={filteredWorkspaces}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        scrollEnabled={true}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
       />
 
       {/* Modal */}
@@ -136,7 +150,7 @@ const WorkspaceList: React.FC = () => {
         onClose={() => setModalVisible(false)}
         onCreated={fetchWorkspaces}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

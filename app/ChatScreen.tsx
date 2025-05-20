@@ -8,6 +8,7 @@ import {
   Alert,
   Text,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useSelector } from "react-redux";
 import Header from "./components/Message/Header";
@@ -37,7 +38,9 @@ const ChatScreen: React.FC = () => {
 
   const name = Array.isArray(params.name) ? params.name[0] : params.name;
   const avatar = Array.isArray(params.avatar) ? params.avatar[0] : params.avatar;
-  const otherUserId = Array.isArray(params.userId) ? params.userId[0] : params.userId;
+  const otherUserId = Array.isArray(params.userId)
+    ? params.userId[0]
+    : params.userId;
 
   const [myUserId, setMyUserId] = useState<number | null>(null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -55,10 +58,9 @@ const ChatScreen: React.FC = () => {
     return format(date, "d MMMM yyyy", { locale: fr });
   };
 
-  // 1. Récupération de ton propre userId
   const fetchMyUserId = async () => {
     try {
-      const res = await fetch("http://192.168.202.30:5263/api/Account/Own", {
+      const res = await fetch("http://192.168.163.30:5263/api/Account/Own", {
         headers: {
           Accept: "*/*",
           Authorization: `Bearer ${token}`,
@@ -66,19 +68,17 @@ const ChatScreen: React.FC = () => {
       });
       const data = await res.json();
       setMyUserId(data?.applicationUser?.id ?? null);
-    } catch (err) {
+    } catch {
       setMyUserId(null);
     }
   };
 
   const fetchMessages = async () => {
-    if (!otherUserId) {
-      return;
-    }
+    if (!otherUserId) return;
     setLoading(true);
     try {
       const response = await fetch(
-        `http://192.168.202.30:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
+        `http://192.168.163.30:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
         {
           headers: {
             Accept: "text/plain",
@@ -95,7 +95,7 @@ const ChatScreen: React.FC = () => {
         json = [];
       }
 
-      let messageArr = Array.isArray(json)
+      const messageArr = Array.isArray(json)
         ? json
         : Array.isArray(json.value)
         ? json.value
@@ -109,7 +109,6 @@ const ChatScreen: React.FC = () => {
 
       for (const msg of messageArr) {
         const label = formatDay(msg.sendDate);
-
         const message: MessageItem = {
           type: "message",
           text: msg.content,
@@ -117,22 +116,18 @@ const ChatScreen: React.FC = () => {
           isSender: msg.senderId === myUserId,
           avatar: msg.senderId === myUserId ? "" : avatar || "",
         };
-
         if (label !== currentLabel && dailyMessages.length > 0) {
           grouped.push({ type: "separator", label: currentLabel! });
           grouped.push(...dailyMessages);
           dailyMessages = [];
         }
-
         currentLabel = label;
         dailyMessages.push(message);
       }
-
       if (dailyMessages.length > 0 && currentLabel) {
         grouped.push({ type: "separator", label: currentLabel });
         grouped.push(...dailyMessages);
       }
-
       setMessages(grouped);
     } catch (err: any) {
       Alert.alert("API Error", err.message || "Failed to load messages.");
@@ -141,7 +136,6 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  // 3. Envoi local (juste pour le test d'affichage)
   const handleSend = (message: string) => {
     const newMsg: MessageItem = {
       type: "message",
@@ -169,38 +163,49 @@ const ChatScreen: React.FC = () => {
   }, [messages]);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={styles.container}>
-        <Header name={name || ""} avatar={avatar || ""} />
-        <ScrollView ref={scrollViewRef} style={styles.messages}>
-          {loading ? (
-            <Text style={{ color: "#888", marginTop: 30, alignSelf: "center" }}>Chargement…</Text>
-          ) : (
-            messages.map((msg, idx) =>
-              msg.type === "separator" ? (
-                <View key={`sep-${idx}`} style={styles.separatorContainer}>
-                  <View style={styles.line} />
-                  <Text style={styles.separatorText}>{msg.label}</Text>
-                  <View style={styles.line} />
-                </View>
-              ) : (
-                <MessageBubble key={`msg-${idx}`} {...msg} />
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 25}
+      >
+        <View style={styles.container}>
+          <Header name={name || ""} avatar={avatar || ""} />
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messages}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {loading ? (
+              <Text style={styles.loadingText}>Chargement…</Text>
+            ) : (
+              messages.map((msg, idx) =>
+                msg.type === "separator" ? (
+                  <View key={`sep-${idx}`} style={styles.separatorContainer}>
+                    <View style={styles.line} />
+                    <Text style={styles.separatorText}>{msg.label}</Text>
+                    <View style={styles.line} />
+                  </View>
+                ) : (
+                  <MessageBubble key={`msg-${idx}`} {...msg} />
+                )
               )
-            )
-          )}
-        </ScrollView>
-        <ChatInput onSend={handleSend} />
-      </View>
-    </KeyboardAvoidingView>
+            )}
+          </ScrollView>
+          <ChatInput onSend={handleSend} />
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  safeArea: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1, backgroundColor: "#fff" },
-  messages: { flex: 1, padding: 10 },
+  messages: { flex: 1 },
+  loadingText: { color: "#888", marginTop: 30, alignSelf: "center" },
   separatorContainer: {
     flexDirection: "row",
     alignItems: "center",

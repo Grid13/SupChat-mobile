@@ -61,7 +61,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
   const fetchAvailableWorkspaces = async () => {
     setLoadingJoinList(true);
     try {
-      const response = await fetch("http://192.168.202.30:5263/api/Workspace/Available", {
+      const response = await fetch("http://192.168.163.30:5263/api/Workspace/Available", {
         headers: {
           Accept: "text/plain",
           Authorization: `Bearer ${token}`,
@@ -94,7 +94,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
             try {
               setLoadingJoinList(true);
               const res = await fetch(
-                `http://192.168.202.30:5263/api/Workspace/${workspace.id}/Join`,
+                `http://192.168.163.30:5263/api/Workspace/${workspace.id}/Join`,
                 {
                   method: "POST",
                   headers: {
@@ -136,7 +136,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
     try {
       setLoading(true);
 
-      const response = await fetch("http://192.168.202.30:5263/api/Workspace", {
+      const response = await fetch("http://192.168.163.30:5263/api/Workspace", {
         method: "POST",
         headers: {
           Accept: "text/plain",
