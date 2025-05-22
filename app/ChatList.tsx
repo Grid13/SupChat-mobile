@@ -42,7 +42,7 @@ const ChatList: React.FC = () => {
   const fetchUsers = async () => {
     if (!token) return;
     try {
-      const response = await fetch("http://192.168.163.30:5263/api/User/Mp", {
+      const response = await fetch("http://192.168.1.10:5263/api/User/Mp", {
         headers: {
           Accept: "text/plain",
           Authorization: `Bearer ${token}`,

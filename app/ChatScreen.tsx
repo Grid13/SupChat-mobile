@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -17,68 +17,74 @@ import ChatInput from "./components/Message/ChatInput";
 import { RootState } from "./store/store";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import "react-native-url-polyfill/auto";
+import { useChatSocket, ChatMessageDto } from "./hooks/useChatSocket";
 
 type MessageItem =
+  | { type: "separator"; label: string }
   | {
       type: "message";
       text: string;
       time: string;
       isSender: boolean;
       avatar: string;
-    }
-  | {
-      type: "separator";
-      label: string;
     };
 
 const ChatScreen: React.FC = () => {
-  const scrollViewRef = useRef<ScrollView>(null);
   const params = useLocalSearchParams();
-  const token = useSelector((state: RootState) => state.auth.token);
-
-  const name = Array.isArray(params.name) ? params.name[0] : params.name;
-  const avatar = Array.isArray(params.avatar) ? params.avatar[0] : params.avatar;
-  const otherUserId = Array.isArray(params.userId)
-    ? params.userId[0]
-    : params.userId;
+  const token = useSelector((s: RootState) => s.auth.token);
+  const otherUserId = Number(
+    Array.isArray(params.userId) ? params.userId[0] : params.userId
+  );
+  const avatar = Array.isArray(params.avatar)
+    ? params.avatar[0]
+    : params.avatar;
 
   const [myUserId, setMyUserId] = useState<number | null>(null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}h${minutes}`;
-  };
-
-  const formatDay = (isoDate: string) => {
-    const date = new Date(isoDate);
-    return format(date, "d MMMM yyyy", { locale: fr });
-  };
-
-  const fetchMyUserId = async () => {
-    try {
-      const res = await fetch("http://192.168.163.30:5263/api/Account/Own", {
-        headers: {
-          Accept: "*/*",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await res.json();
-      setMyUserId(data?.applicationUser?.id ?? null);
-    } catch {
-      setMyUserId(null);
+  const formatTime = (iso: string) => {
+    const d = new Date(iso);
+    if (!isNaN(d.getTime())) {
+      return `${d.getHours().toString().padStart(2, "0")}h${d
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`;
     }
+    const match = iso.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2})\s*([AP]M)/);
+    if (match) {
+      let [_, month, day, year, hour, min, sec, ampm] = match;
+      let h = parseInt(hour, 10);
+      if (ampm === 'PM' && h < 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+      return `${h.toString().padStart(2, "0")}h${min.padStart(2, "0")}`;
+    }
+    return "--:--";
   };
+  const formatDay = (iso: string) =>
+    format(new Date(iso), "d MMMM yyyy", { locale: fr });
 
-  const fetchMessages = async () => {
-    if (!otherUserId) return;
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("http://192.168.1.10:5263/api/Account/Me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const d = await r.json();
+        setMyUserId(d.applicationUser?.id ?? null);
+      } catch (e) {
+        console.error("fetch /Me failed:", e);
+      }
+    })();
+  }, [token]);
+
+  const fetchMessages = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `http://192.168.163.30:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
+      const res = await fetch(
+        `http://192.168.1.10:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
         {
           headers: {
             Accept: "text/plain",
@@ -86,109 +92,120 @@ const ChatScreen: React.FC = () => {
           },
         }
       );
-
-      const text = await response.text();
-      let json;
-      try {
-        json = JSON.parse(text);
-      } catch {
-        json = [];
-      }
-
-      const messageArr = Array.isArray(json)
-        ? json
-        : Array.isArray(json.value)
+      const text = await res.text();
+      const json = JSON.parse(text || "[]");
+      const arr: ChatMessageDto[] = Array.isArray(json.value)
         ? json.value
-        : Array.isArray(json.valueOrDefault)
-        ? json.valueOrDefault
-        : [];
-
+        : json.valueOrDefault || json;
       const grouped: MessageItem[] = [];
-      let currentLabel: string | null = null;
-      let dailyMessages: MessageItem[] = [];
-
-      for (const msg of messageArr) {
-        const label = formatDay(msg.sendDate);
-        const message: MessageItem = {
-          type: "message",
-          text: msg.content,
-          time: formatTime(msg.sendDate),
-          isSender: msg.senderId === myUserId,
-          avatar: msg.senderId === myUserId ? "" : avatar || "",
-        };
-        if (label !== currentLabel && dailyMessages.length > 0) {
-          grouped.push({ type: "separator", label: currentLabel! });
-          grouped.push(...dailyMessages);
-          dailyMessages = [];
+      let currLabel: string | null = null;
+      let dayMsgs: MessageItem[] = [];
+      arr.sort((a, b) => new Date(a.sendDate).getTime() - new Date(b.sendDate).getTime());
+      arr.forEach((m) => {
+        const label = formatDay(m.sendDate);
+        if (currLabel && label !== currLabel) {
+          grouped.push({ type: "separator", label: currLabel });
+          grouped.push(...dayMsgs);
+          dayMsgs = [];
         }
-        currentLabel = label;
-        dailyMessages.push(message);
-      }
-      if (dailyMessages.length > 0 && currentLabel) {
-        grouped.push({ type: "separator", label: currentLabel });
-        grouped.push(...dailyMessages);
+        currLabel = label;
+        dayMsgs.push({
+          type: "message",
+          text: m.content,
+          time: formatTime(m.sendDate),
+          isSender: m.senderId === myUserId,
+          avatar: m.senderId === myUserId ? "" : avatar || "",
+        });
+      });
+      if (dayMsgs.length && currLabel) {
+        grouped.push({ type: "separator", label: currLabel });
+        grouped.push(...dayMsgs);
       }
       setMessages(grouped);
-    } catch (err: any) {
-      Alert.alert("API Error", err.message || "Failed to load messages.");
+    } catch (e: any) {
+      Alert.alert("Erreur", e.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSend = (message: string) => {
-    const newMsg: MessageItem = {
-      type: "message",
-      text: message,
-      time: formatTime(new Date().toISOString()),
-      isSender: true,
-      avatar: "",
-    };
-    setMessages((prev) => [...prev, newMsg]);
-    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
-  };
+  }, [otherUserId, token, myUserId, avatar]);
 
   useEffect(() => {
-    fetchMyUserId();
-  }, []);
+    if (myUserId && otherUserId) fetchMessages();
+  }, [myUserId, otherUserId, fetchMessages]);
 
   useEffect(() => {
-    if (myUserId !== null && otherUserId) {
-      fetchMessages();
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollToEnd({ animated: true });
     }
-  }, [myUserId, otherUserId]);
-
-  useEffect(() => {
-    scrollViewRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 
+  const handleReceive = useCallback(
+    (m: ChatMessageDto) => {
+      if (m.senderId === otherUserId) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "message",
+            text: m.content,
+            time: formatTime(m.sendDate),
+            isSender: false,
+            avatar: avatar || "",
+          },
+        ]);
+      }
+    },
+    [otherUserId, avatar]
+  );
+
+  const { isConnected, sendMessage } = useChatSocket({
+    token: token!,
+    conversationWithUserId: otherUserId,
+    onReceive: handleReceive,
+  });
+
+  const handleSend = async (text: string) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "message",
+        text,
+        time: formatTime(new Date().toISOString()),
+        isSender: true,
+        avatar: "",
+      },
+    ]);
+    try {
+      await sendMessage(text);
+    } catch (e: any) {
+      Alert.alert("Échec de l’envoi", e.message || "Réessayez.");
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+    <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 25}
       >
         <View style={styles.container}>
-          <Header name={name || ""} avatar={avatar || ""} />
+          <Header name={params.name as string} avatar={avatar as string} />
           <ScrollView
             ref={scrollViewRef}
-            style={styles.messages}
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
             keyboardShouldPersistTaps="handled"
           >
             {loading ? (
               <Text style={styles.loadingText}>Chargement…</Text>
             ) : (
-              messages.map((msg, idx) =>
+              messages.map((msg, i) =>
                 msg.type === "separator" ? (
-                  <View key={`sep-${idx}`} style={styles.separatorContainer}>
+                  <View key={i} style={styles.separatorContainer}>
                     <View style={styles.line} />
                     <Text style={styles.separatorText}>{msg.label}</Text>
                     <View style={styles.line} />
                   </View>
                 ) : (
-                  <MessageBubble key={`msg-${idx}`} {...msg} />
+                  <MessageBubble key={i} {...msg} />
                 )
               )
             )}
@@ -204,7 +221,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   safeArea: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1, backgroundColor: "#fff" },
-  messages: { flex: 1 },
   loadingText: { color: "#888", marginTop: 30, alignSelf: "center" },
   separatorContainer: {
     flexDirection: "row",
@@ -217,12 +233,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#888",
   },
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#444",
-    opacity: 0.5,
-  },
+  line: { flex: 1, height: 1, backgroundColor: "#444", opacity: 0.5 },
 });
 
 export default ChatScreen;
