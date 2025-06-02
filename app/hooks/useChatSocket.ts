@@ -14,75 +14,99 @@ export interface ChatMessageDto {
   sendDate: string;
   senderId: number;
   receiverId: number;
-  channelId: number;
-  parentId: number;
 }
 
-type UseChatSocketProps = {
-  token: string;
-  conversationWithUserId: number;
-  onReceive: (msg: ChatMessageDto) => void;
-};
-
-export const useChatSocket = ({
-  token,
-  conversationWithUserId,
-  onReceive,
-}: UseChatSocketProps) => {
-  const connectionRef = useRef<HubConnection | null>(null);
+/**
+ * Hook to manage private chat socket connection and messaging
+ * @param token JWT authentication token
+ * @param onReceive Callback invoked when a new ChatMessageDto is received
+ * @returns { isConnected: boolean, sendMessage: (userId: number, content: string) => Promise<ChatMessageDto> }
+ */
+const useChatSocket = (
+  token: string,
+  onReceive: (message: ChatMessageDto) => void
+) => {
   const [isConnected, setIsConnected] = useState(false);
+  const connectionRef = useRef<HubConnection | null>(null);
 
   useEffect(() => {
-    if (!token) return;
+    const connect = async () => {
+      // Choose transport based on platform
+      const transport =
+        Platform.OS === "web"
+          ? HttpTransportType.WebSockets
+          : HttpTransportType.LongPolling;
 
-    const baseUrl =
-      Platform.OS === "android"
-        ? "http://10.0.2.2:5263/chatHub"
-        : "http://192.168.1.10:5263/chatHub";
+      const connection = new HubConnectionBuilder()
+        .withUrl("http://192.168.163.30:5263/chatHub", {
+          accessTokenFactory: () => token,
+          transport,
+        })
+        .configureLogging(LogLevel.Information)
+        .withAutomaticReconnect()
+        .build();
 
-    const conn = new HubConnectionBuilder()
-      .withUrl(baseUrl, {
-        accessTokenFactory: () => token,
-        transport: HttpTransportType.LongPolling,
-      })
-      .configureLogging(LogLevel.Information)
-      .withAutomaticReconnect()
-      .build();
+      connectionRef.current = connection;
 
-    conn.on("ReceiveMessage", onReceive);
-    conn.on("UserConnected", (userId: string) =>
-      console.log("UserConnected:", userId)
-    );
-    conn.on("UserJoinedChannel", (channelId: string) =>
-      console.log("UserJoinedChannel:", channelId)
-    );
-    conn.onclose(() => setIsConnected(false));
+      // Connection lifecycle handlers
+      connection.onreconnecting((error) => {
+        console.warn("SignalR reconnecting:", error);
+        setIsConnected(false);
+      });
 
-    conn
-      .start()
-      .then(() => {
+      connection.onreconnected((connectionId) => {
+        console.log("SignalR reconnected, connectionId:", connectionId);
         setIsConnected(true);
-        return conn.invoke("JoinChannel", conversationWithUserId);
-      })
-      .catch((err) => console.error("SignalR connection failed:", err));
+      });
 
-    connectionRef.current = conn;
-    return () => {
-      conn.stop();
-      connectionRef.current = null;
+      connection.onclose((error) => {
+        console.warn("SignalR connection closed:", error);
+        setIsConnected(false);
+      });
+
+      // Subscribe to incoming private messages
+      connection.on(
+        "ReceiveMessage",
+        (message: ChatMessageDto) => {
+          onReceive(message);
+        }
+      );
+
+      try {
+        await connection.start();
+        console.log("✅ Connected to chatHub");
+        setIsConnected(true);
+      } catch (err) {
+        console.error("❌ SignalR connection error:", err);
+      }
     };
-  }, [token, conversationWithUserId, onReceive]);
 
-  const sendMessage = async (content: string): Promise<ChatMessageDto> => {
+    connect();
+
+    return () => {
+      connectionRef.current?.stop();
+    };
+  }, [token, onReceive]);
+
+  /**
+   * Send a private message to a specific user via HTTP API
+   * @param receiverId ID of the user to send the message to
+   * @param content Message content
+   * @returns Promise resolving to the sent ChatMessageDto
+   */
+  const sendMessage = async (
+    receiverId: number,
+    content: string
+  ): Promise<ChatMessageDto> => {
     const res = await fetch(
-      `http://192.168.1.10:5263/api/Message/PostForUser`,
+      `http://192.168.163.30:5263/api/Message/PostForUser`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ content, receiverId: conversationWithUserId }),
+        body: JSON.stringify({ content, receiverId }),
       }
     );
     if (!res.ok) {
@@ -94,3 +118,5 @@ export const useChatSocket = ({
 
   return { isConnected, sendMessage };
 };
+
+export default useChatSocket;

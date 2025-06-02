@@ -22,8 +22,8 @@ const Login = () => {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const [email, setEmail] = useState("bpt@example.com");
-  const [password, setPassword] = useState("Bpt1234!");
+  const [email, setEmail] = useState("bpt@exemple.com");
+  const [password, setPassword] = useState("Bpt123!");
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +41,7 @@ const Login = () => {
       formBody.append("password", password);
       formBody.append("grant_type", "password");
 
-      const response = await fetch("http://192.168.1.10:5263/api/Authorization/login", {
+      const response = await fetch("http://192.168.163.30:5263/api/Authorization/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -73,7 +73,7 @@ const Login = () => {
   const handleGitHubRedirectLogin = async () => {
     try {
       const redirectUri = Linking.createURL("redirect");
-      const loginUrl = `http://192.168.1.10:5263/api/Authorization/login/github?returnUrl=${encodeURIComponent(
+      const loginUrl = `http://192.168.163.30:5263/api/Authorization/login/github?returnUrl=${encodeURIComponent(
         redirectUri
       )}`;
 

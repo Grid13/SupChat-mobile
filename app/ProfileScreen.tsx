@@ -25,13 +25,13 @@ const SettingsScreen = () => {
     if (!token) return;
 
     try {
-      const response = await fetch("http://192.168.1.10:5263/me", {
+      const response = await fetch("http://192.168.163.30:5263/api/Account/Me", {
         headers: {
-          Accept: "*/*",
+          Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
       });
-
+      if (!response.ok) throw new Error(`Error ${response.status}`);
       const json = await response.json();
 
       setProfile({
@@ -47,15 +47,15 @@ const SettingsScreen = () => {
         language: json.applicationUser?.languageLocalized || "English",
         theme: json.applicationUser?.themeLocalized || "Light",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load profile:", err);
-      Alert.alert("Error", "Unable to load profile");
+      Alert.alert("Error", err.message || "Unable to load profile");
     }
   };
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [token]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

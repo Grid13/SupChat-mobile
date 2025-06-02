@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import CreateChannelModal from "./CreateChannelModal";
 
 export type Channel = {
@@ -30,7 +31,7 @@ type Props = {
   channels: Channel[];
   loading: boolean;
   selectedChannelId?: number | null;
-  onChannelCreated?: () => void; // <--- nouveau callback
+  onChannelCreated?: () => void;
 };
 
 const WorkspaceDrawer: React.FC<Props> = ({
@@ -45,6 +46,7 @@ const WorkspaceDrawer: React.FC<Props> = ({
   onChannelCreated,
 }) => {
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const router = useRouter();
 
   if (!visible) return null;
 
@@ -62,7 +64,15 @@ const WorkspaceDrawer: React.FC<Props> = ({
           />
           <View>
             <Text style={styles.workspaceName}>{workspaceName}</Text>
-            <TouchableOpacity style={styles.settingsIcon}>
+            <TouchableOpacity
+              style={styles.settingsIcon}
+              onPress={() =>
+                router.push({
+                  pathname: "./WorkSpaceSettings",
+                  params: { id: workspaceId },
+                })
+              }
+            >
               <Ionicons name="settings-sharp" size={16} color="#888" />
               <Text style={styles.settingsText}>Settings</Text>
             </TouchableOpacity>
@@ -74,7 +84,9 @@ const WorkspaceDrawer: React.FC<Props> = ({
           {loading ? (
             <ActivityIndicator style={{ marginVertical: 20 }} />
           ) : channels.length === 0 ? (
-            <Text style={{ color: "#aaa", marginTop: 12 }}>No channels found.</Text>
+            <Text style={{ color: "#aaa", marginTop: 12 }}>
+              No channels found.
+            </Text>
           ) : (
             channels.map((ch: Channel) => (
               <TouchableOpacity
@@ -108,7 +120,7 @@ const WorkspaceDrawer: React.FC<Props> = ({
             ))
           )}
 
-          {/* Add Channel button TOUJOURS à la fin de la liste */}
+          {/* Add Channel button */}
           <TouchableOpacity
             style={styles.addChannelBtn}
             onPress={() => setCreateModalVisible(true)}
@@ -124,11 +136,15 @@ const WorkspaceDrawer: React.FC<Props> = ({
           workspaceId={workspaceId}
           onCreated={() => {
             setCreateModalVisible(false);
-            if (onChannelCreated) onChannelCreated();
+            onChannelCreated?.();
           }}
         />
       </View>
-      <TouchableOpacity style={styles.closeArea} onPress={onClose} activeOpacity={1} />
+      <TouchableOpacity
+        style={styles.closeArea}
+        onPress={onClose}
+        activeOpacity={1}
+      />
     </View>
   );
 };
