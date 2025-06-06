@@ -7,15 +7,6 @@ import {
 } from "@microsoft/signalr";
 import { Platform } from "react-native";
 
-export interface ChatMessageDto {
-  id: number;
-  content: string;
-  sendDate: string;
-  senderId: number;
-  receiverId: number;
-  parentId?: number;
-}
-
 /**
  * Crée et configure une instance HubConnection pour le chat.
  * Ne démarre PAS automatiquement la connexion.
@@ -25,7 +16,7 @@ export interface ChatMessageDto {
  */
 export const createChatConnection = (
   token: string,
-  onReceive: (message: ChatMessageDto) => void
+  onReceive: (message: import("./useChatSocket").ChatMessageDto) => void
 ): HubConnection => {
   // Choix du transport en fonction de la plateforme
   const transport =
@@ -54,7 +45,7 @@ export const createChatConnection = (
   });
 
   // Abonnement aux messages entrants
-  connection.on("OnMessageReceived", (message: ChatMessageDto) => {
+  connection.on("OnMessageReceived", (message: import("./useChatSocket").ChatMessageDto) => {
     onReceive(message);
   });
 

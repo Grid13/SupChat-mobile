@@ -30,7 +30,7 @@ type MessageItem =
       time: string;
       isSender: boolean;
       avatar: string;
-      parentId: number | null;
+      parentId?: number;
     };
 
 const ChatScreen: React.FC = () => {
@@ -116,7 +116,7 @@ const ChatScreen: React.FC = () => {
           time: formatTime(m.sendDate),
           isSender: m.senderId === myUserId,
           avatar: m.senderId === myUserId ? '' : avatar || '',
-          parentId: m.parentId ?? null,
+          parentId: m.parentId,
         });
       });
       if (dayMsgs.length && currLabel) {
@@ -155,7 +155,7 @@ const ChatScreen: React.FC = () => {
             time: formatTime(m.sendDate),
             isSender: false,
             avatar: avatar || '',
-            parentId: m.parentId ?? null,
+            parentId: m.parentId, // no ?? null
           },
         ]);
       }
@@ -217,7 +217,7 @@ const ChatScreen: React.FC = () => {
             time: formatTime(returned.sendDate),
             isSender: true,
             avatar: '',
-            parentId: returned.parentId ?? null,
+            parentId: returned.parentId, // no ?? null
           },
         ]);
         setReplyTo(null);
