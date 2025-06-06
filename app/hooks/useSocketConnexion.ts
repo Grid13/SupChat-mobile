@@ -45,9 +45,7 @@ export const createChatConnection = (
   });
 
   // Abonnement aux messages entrants
-  connection.on("OnMessageReceived", (message: import("./useChatSocket").ChatMessageDto) => {
-    onReceive(message);
-  });
+  // (Moved to useChatSocket/useChatMessages)
 
   return connection;
 };

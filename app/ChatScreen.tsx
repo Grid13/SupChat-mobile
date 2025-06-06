@@ -6,8 +6,10 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  Modal,
+  TouchableOpacity,
   Text,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -47,6 +49,20 @@ const ChatScreen: React.FC = () => {
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [replyTo, setReplyTo] = useState<{ id: number; text: string } | null>(null);
+
+  // État pour le mode édition
+  const [editing, setEditing] = useState<{ id: number; text: string } | null>(null);
+
+  // **Nouveaux états pour le drawer**
+  // drawerVisible : true si on doit afficher le drawer
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  // On stocke l'id, le texte et isSender du message appuyé longuement
+  const [drawerMessage, setDrawerMessage] = useState<{
+    id: number;
+    text: string;
+    isSender: boolean;
+  } | null>(null);
+
   const scrollViewRef = useRef<ScrollView>(null);
 
   const formatTime = (iso: string) => {
@@ -77,7 +93,7 @@ const ChatScreen: React.FC = () => {
     })();
   }, [token]);
 
-  // 2) Charger l'historique des messages (avec id & parentId)
+  // 2) Charger l'historique des messages
   const fetchMessages = useCallback(async () => {
     setLoading(true);
     try {
@@ -94,13 +110,15 @@ const ChatScreen: React.FC = () => {
       const json = JSON.parse(text || '[]');
       const arr: ChatMessageDto[] = Array.isArray(json.value)
         ? json.value
-        : json.valueOrDefault || json;
+        : (json.valueOrDefault || json);
 
       const grouped: MessageItem[] = [];
       let currLabel: string | null = null;
       let dayMsgs: MessageItem[] = [];
 
-      arr.sort((a, b) => new Date(a.sendDate).getTime() - new Date(b.sendDate).getTime());
+      arr.sort(
+        (a, b) => new Date(a.sendDate).getTime() - new Date(b.sendDate).getTime()
+      );
       arr.forEach((m) => {
         const label = formatDay(m.sendDate);
         if (currLabel && label !== currLabel) {
@@ -142,7 +160,7 @@ const ChatScreen: React.FC = () => {
     }
   }, [messages]);
 
-  // 4) Réception en temps réel via WebSocket (si configuré)
+  // 4) Gestion du WebSocket
   const handleReceive = useCallback(
     (m: ChatMessageDto) => {
       if (m.senderId === otherUserId) {
@@ -155,29 +173,113 @@ const ChatScreen: React.FC = () => {
             time: formatTime(m.sendDate),
             isSender: false,
             avatar: avatar || '',
-            parentId: m.parentId, // no ?? null
+            parentId: m.parentId,
           },
         ]);
       }
     },
     [otherUserId, avatar]
   );
-  const { isConnected, sendMessage } = useChatSocket(token!, handleReceive);
 
-  // 5) Passer en mode « répondre » (appui long sur une bulle)
-  const handleReply = (id: number, text: string) => {
-    setReplyTo({ id, text });
+  // Handle real-time message update
+  const handleUpdate = useCallback(
+    (updated: any) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.type === 'message' && msg.id === updated.id
+            ? { ...msg, text: updated.content }
+            : msg
+        )
+      );
+    },
+    []
+  );
+
+  // Handle real-time message delete
+  const handleDelete = useCallback(
+    (id: number) => {
+      setMessages((prev) =>
+        prev.filter((msg) => !(msg.type === 'message' && msg.id === id))
+      );
+    },
+    []
+  );
+
+  const { isConnected, sendMessage } = useChatSocket(token!, handleReceive, handleUpdate, handleDelete);
+
+  // 5) On ouvre le drawer et on stocke isSender
+  const onMessageLongPress = (
+    msgId: number,
+    msgText: string,
+    isSender: boolean
+  ) => {
+    setDrawerMessage({ id: msgId, text: msgText, isSender });
+    setDrawerVisible(true);
   };
 
-  // 6) Annuler la réponse
-  const cancelReply = () => {
-    setReplyTo(null);
-  };
-
-  // 7) Envoi d’un message : on n’envoie parentId QUE si replyTo existe
-  const handleSend = async (text: string, parentId: number | null) => {
+  // 6) Supprimer un message
+  const deleteMessage = async (msgId: number) => {
     try {
-      // Construction conditionnelle du corps : on n'ajoute parentId que s'il est non-null
+      const res = await fetch(
+        `http://192.168.1.10:5263/api/Message/${msgId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (res.ok) {
+        setMessages((prev) =>
+          prev.filter((m) => !(m.type === 'message' && m.id === msgId))
+        );
+      } else {
+        Alert.alert('Erreur serveur', `Impossible de supprimer (status ${res.status})`);
+      }
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
+    }
+  };
+
+  // 7) Enregistrer l’édition (PATCH)
+  const saveEditedMessage = async (newText: string) => {
+    if (!editing) return;
+    const msgId = editing.id;
+    try {
+      const res = await fetch(
+        `http://192.168.1.10:5263/api/Message/${msgId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ content: newText }),
+        }
+      );
+      if (res.ok) {
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.type === 'message' && m.id === msgId) {
+              return { ...m, text: newText };
+            }
+            return m;
+          })
+        );
+        setEditing(null);
+      } else {
+        Alert.alert('Erreur serveur', `Impossible de modifier (code ${res.status})`);
+      }
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
+    }
+  };
+
+  // 8) Envoi d’un nouveau message (ou réponse)
+  const handleSend = async (text: string, parentId: number | null) => {
+    if (editing) return;
+
+    try {
       const body: { content: string; receiverId: number; parentId?: number } = {
         content: text,
         receiverId: otherUserId,
@@ -199,7 +301,6 @@ const ChatScreen: React.FC = () => {
       );
 
       if (res.ok) {
-        // Récupère le message créé
         const returned: {
           id: number;
           content: string;
@@ -217,7 +318,7 @@ const ChatScreen: React.FC = () => {
             time: formatTime(returned.sendDate),
             isSender: true,
             avatar: '',
-            parentId: returned.parentId, // no ?? null
+            parentId: returned.parentId,
           },
         ]);
         setReplyTo(null);
@@ -227,6 +328,33 @@ const ChatScreen: React.FC = () => {
     } catch (e: any) {
       Alert.alert('Erreur envoi', e.message || 'Une erreur est survenue.');
     }
+  };
+
+  // 9) Actions du drawer
+  const onReplyFromDrawer = () => {
+    if (drawerMessage) {
+      setReplyTo({ id: drawerMessage.id, text: drawerMessage.text });
+    }
+    setDrawerVisible(false);
+  };
+
+  const onEditFromDrawer = () => {
+    if (drawerMessage && drawerMessage.isSender) {
+      setEditing({ id: drawerMessage.id, text: drawerMessage.text });
+    }
+    setReplyTo(null);
+    setDrawerVisible(false);
+  };
+
+  const onDeleteFromDrawer = () => {
+    if (drawerMessage && drawerMessage.isSender) {
+      deleteMessage(drawerMessage.id);
+    }
+    setDrawerVisible(false);
+  };
+
+  const onCancelFromDrawer = () => {
+    setDrawerVisible(false);
   };
 
   return (
@@ -255,11 +383,12 @@ const ChatScreen: React.FC = () => {
                   </View>
                 ) : (
                   (() => {
-                    // On cherche le texte du message parent s'il y en a un
                     let parentText: string | null = null;
                     if (msg.parentId && msg.parentId > 0) {
                       const parentMsg = messages.find(
-                        (x) => x.type === 'message' && x.id === msg.parentId
+                        (x) =>
+                          x.type === 'message' &&
+                          (x as any).id === msg.parentId
                       ) as { type: 'message'; id: number; text: string } | undefined;
                       parentText = parentMsg ? parentMsg.text : null;
                     }
@@ -272,7 +401,10 @@ const ChatScreen: React.FC = () => {
                         avatar={msg.avatar}
                         parentId={msg.parentId}
                         parentText={parentText}
-                        onLongPress={() => handleReply(msg.id, msg.text)}
+                        // On passe également isSender pour décider du drawer
+                        onLongPress={() =>
+                          onMessageLongPress(msg.id, msg.text, msg.isSender)
+                        }
                       />
                     );
                   })()
@@ -284,8 +416,65 @@ const ChatScreen: React.FC = () => {
           <ChatInput
             onSend={handleSend}
             replyTo={replyTo}
-            onCancelReply={cancelReply}
+            onCancelReply={() => setReplyTo(null)}
+            editing={editing}
+            onSaveEdit={saveEditedMessage}
+            onCancelEdit={() => setEditing(null)}
           />
+
+          {/* Drawer (Modal) */}
+          <Modal
+            visible={drawerVisible}
+            animationType="slide"
+            transparent
+            onRequestClose={onCancelFromDrawer}
+          >
+            {/* Overlay semi-transparent pour fermer le drawer si on touche à côté */}
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={onCancelFromDrawer}
+            />
+            <View style={styles.drawerContainer}>
+              <Text style={styles.drawerTitle}>Que voulez-vous faire ?</Text>
+
+              {/* Toujours possible de répondre */}
+              <TouchableOpacity
+                style={styles.drawerButton}
+                onPress={onReplyFromDrawer}
+              >
+                <Text style={styles.drawerButtonText}>Répondre</Text>
+              </TouchableOpacity>
+
+              {/* Affiché seulement si c’est VOTRE message */}
+              {drawerMessage?.isSender && (
+                <>
+                  <TouchableOpacity
+                    style={styles.drawerButton}
+                    onPress={onEditFromDrawer}
+                  >
+                    <Text style={styles.drawerButtonText}>Modifier</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.drawerButton, styles.deleteButton]}
+                    onPress={onDeleteFromDrawer}
+                  >
+                    <Text style={[styles.drawerButtonText, styles.deleteText]}>
+                      Supprimer
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* Annuler : toujours possible */}
+              <TouchableOpacity
+                style={styles.drawerButton}
+                onPress={onCancelFromDrawer}
+              >
+                <Text style={styles.drawerButtonText}>Annuler</Text>
+              </TouchableOpacity>
+            </View>
+          </Modal>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -309,6 +498,44 @@ const styles = StyleSheet.create({
     color: '#888',
   },
   line: { flex: 1, height: 1, backgroundColor: '#444', opacity: 0.5 },
+
+  // Overlay semi-transparente derrière le drawer
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  // Conteneur du drawer (au bas de l'écran)
+  drawerContainer: {
+    backgroundColor: '#fff',
+    paddingTop: 12,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  drawerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  drawerButton: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+  },
+  drawerButtonText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+  },
+  deleteButton: {
+    borderColor: '#eee',
+  },
+  deleteText: {
+    color: '#E53935',
+    fontWeight: '600',
+  },
 });
 
 export default ChatScreen;

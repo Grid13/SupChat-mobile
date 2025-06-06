@@ -13,7 +13,9 @@ import { createChatConnection } from "./useSocketConnexion";
  */
 const useChatMessages = (
   token: string,
-  onReceive: (message: ChatMessageDto) => void
+  onReceive: (message: ChatMessageDto) => void,
+  onUpdate?: (message: any) => void,
+  onDelete?: (id: number) => void
 ) => {
   const [isConnected, setIsConnected] = useState(false);
   const connectionRef = useRef<HubConnection | null>(null);
@@ -26,8 +28,17 @@ const useChatMessages = (
     }
 
     // Crée et configure la connexion (mais ne la démarre pas encore)
-    const connection = createChatConnection(token, onReceive);
+    const connection = createChatConnection(token, () => {});
     connectionRef.current = connection;
+
+    // Abonnement aux messages entrants (spécifique à ce hook)
+    connection.on("OnMessageReceived", onReceive);
+    if (onUpdate) {
+      connection.on("onmessageupdated", onUpdate);
+    }
+    if (typeof onDelete === 'function') {
+      connection.on("onmessagedeleted", onDelete);
+    }
 
     // Sur reconnection automatique, si la reprise a réussi, on passe isConnected à true
     connection.onreconnected(() => {
@@ -59,7 +70,7 @@ const useChatMessages = (
       connectionRef.current = null;
       setIsConnected(false);
     };
-  }, [token, onReceive]);
+  }, [token, onReceive, onUpdate, onDelete]);
 
   // 2) Fonction pour envoyer un message à un utilisateur donné via HTTP
   const sendMessage = useCallback(

@@ -1,5 +1,5 @@
 // ChatInput.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -10,34 +10,60 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 interface ChatInputProps {
-  onSend: (message: string, parentId: number | null) => void; // Mis à jour : parentId en plus
-  replyTo: { id: number; text: string } | null;               // Ajout : info du message parent
-  onCancelReply: () => void;                                   // Ajout : annulation de la réponse
+  onSend: (message: string, parentId: number | null) => void;
+  replyTo: { id: number; text: string } | null;
+  onCancelReply: () => void;
+
+  // Nouvelles props pour l’édition
+  editing: { id: number; text: string } | null;
+  onSaveEdit: (newText: string) => void;
+  onCancelEdit: () => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   replyTo,
   onCancelReply,
+  editing,
+  onSaveEdit,
+  onCancelEdit,
 }) => {
+  // Si on édite, on pré-remplit l’input avec le texte existant
   const [message, setMessage] = useState('');
-  const [showMenu, setShowMenu] = useState(false);
+
+  useEffect(() => {
+    if (editing) {
+      setMessage(editing.text);
+    }
+  }, [editing]);
 
   const handleSend = () => {
-    if (message.trim()) {
-      onSend(message.trim(), replyTo ? replyTo.id : null);
-      setMessage('');
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    if (editing) {
+      // Si on est en mode édition, on sauvegarde la modification
+      onSaveEdit(trimmed);
+    } else {
+      // Sinon, on envoie un nouveau message ou une réponse
+      onSend(trimmed, replyTo ? replyTo.id : null);
     }
+    setMessage('');
   };
 
-  const toggleMenu = () => {
-    setShowMenu(!showMenu);
+  const cancelAllModes = () => {
+    if (editing) {
+      onCancelEdit();
+    }
+    if (replyTo) {
+      onCancelReply();
+    }
+    setMessage('');
   };
 
   return (
     <View>
-      {/* Si on répond à un message, on affiche le bandeau */}
-      {replyTo && (
+      {/* Si on est en mode « répondre » ET PAS en mode édition, on affiche le bandeau « Répondre à » */}
+      {replyTo && !editing && (
         <View style={styles.replyContainer}>
           <Text style={styles.replyText} numberOfLines={1}>
             Répondre à : {replyTo.text}
@@ -48,35 +74,41 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </View>
       )}
 
-      {/* Menu d’ajout (fichier, image…) */}
-      {showMenu && (
-        <View style={styles.menuContainer}>
-          <TouchableOpacity style={styles.menuItem}>
-            <Icon name="file" size={22} color="#5C6BC0" />
-            <Text style={styles.menuText}>Fichier</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Icon name="image" size={22} color="#5C6BC0" />
-            <Text style={styles.menuText}>Photo</Text>
+      {/* Si on est en mode édition, on affiche un bandeau spécial */}
+      {editing && (
+        <View style={[styles.replyContainer, { backgroundColor: '#ffeeba' }]}>
+          <Text style={[styles.replyText, { fontWeight: 'bold' }]} numberOfLines={1}>
+            Modification : {editing.text}
+          </Text>
+          <TouchableOpacity onPress={cancelAllModes} style={styles.cancelButton}>
+            <Text style={styles.cancelText}>×</Text>
           </TouchableOpacity>
         </View>
       )}
 
       <View style={styles.inputContainer}>
-        <TouchableOpacity onPress={toggleMenu}>
-          <Icon name="plus-circle-outline" size={28} color="#5C6BC0" />
+        <TouchableOpacity onPress={cancelAllModes} disabled={!editing && !replyTo}>
+          <Icon
+            name={editing || replyTo ? 'close-circle-outline' : 'plus-circle-outline'}
+            size={28}
+            color={editing || replyTo ? '#E53935' : '#5C6BC0'}
+          />
         </TouchableOpacity>
 
         <TextInput
           style={styles.input}
-          placeholder="Message …"
+          placeholder={editing ? 'Modifier votre message…' : 'Message…'}
           placeholderTextColor="#999"
           value={message}
           onChangeText={setMessage}
         />
 
         <TouchableOpacity onPress={handleSend}>
-          <Icon name="send" size={24} color="#5C6BC0" />
+          <Icon
+            name={editing ? 'check-circle-outline' : 'send'}
+            size={24}
+            color="#5C6BC0"
+          />
         </TouchableOpacity>
       </View>
     </View>
@@ -104,30 +136,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  menuContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    margin: 10,
-    padding: 10,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  menuText: {
-    marginLeft: 6,
-    fontSize: 16,
-    color: '#5C6BC0',
-  },
-
-  // Bandeau « Répondre à »
+  // Bandeau « Répondre à » et « Modification »
   replyContainer: {
     flexDirection: 'row',
     alignItems: 'center',
