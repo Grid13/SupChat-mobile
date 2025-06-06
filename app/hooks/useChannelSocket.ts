@@ -38,7 +38,7 @@ export const useChatSocket = ({
     const baseUrl =
       Platform.OS === "android"
         ? "http://10.0.2.2:5263/chatHub"
-        : "http://192.168.163.30:5263/chatHub";
+        : "http://192.168.1.10:5263/chatHub";
 
     const conn = new HubConnectionBuilder()
       .withUrl(baseUrl, {
@@ -49,12 +49,12 @@ export const useChatSocket = ({
       .withAutomaticReconnect()
       .build();
 
-    conn.on("ReceiveMessage", onReceive);
-    conn.on("UserConnected", (userId: string) =>
-      console.log("UserConnected:", userId)
+    conn.on("OnMessageReceived", onReceive);
+    conn.on("OnUserConnected", (userId: string) =>
+      console.log("OnUserConnected:", userId)
     );
-    conn.on("UserJoinedChannel", (channelId: string) =>
-      console.log("UserJoinedChannel:", channelId)
+    conn.on("OnUserJoinedChannel", (channelId: string) =>
+      console.log("OnUserJoinedChannel:", channelId)
     );
     conn.onclose(() => setIsConnected(false));
 
@@ -75,7 +75,7 @@ export const useChatSocket = ({
 
   const sendMessage = async (content: string): Promise<ChatMessageDto> => {
     const res = await fetch(
-      `http://192.168.163.30:5263/api/Message/PostForUser`,
+      `http://192.168.1.10:5263/api/Message/PostForUser`,
       {
         method: "POST",
         headers: {

@@ -25,7 +25,7 @@ const SettingsScreen = () => {
     if (!token) return;
 
     try {
-      const response = await fetch("http://192.168.163.30:5263/api/Account/Me", {
+      const response = await fetch("http://192.168.1.10:5263/api/Account/Me", {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,

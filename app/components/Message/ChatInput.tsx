@@ -1,18 +1,31 @@
+// ChatInput.tsx
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import {
+  View,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Text,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, parentId: number | null) => void; // Mis à jour : parentId en plus
+  replyTo: { id: number; text: string } | null;               // Ajout : info du message parent
+  onCancelReply: () => void;                                   // Ajout : annulation de la réponse
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSend }) => {
+const ChatInput: React.FC<ChatInputProps> = ({
+  onSend,
+  replyTo,
+  onCancelReply,
+}) => {
   const [message, setMessage] = useState('');
   const [showMenu, setShowMenu] = useState(false);
 
   const handleSend = () => {
     if (message.trim()) {
-      onSend(message);
+      onSend(message.trim(), replyTo ? replyTo.id : null);
       setMessage('');
     }
   };
@@ -23,6 +36,19 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend }) => {
 
   return (
     <View>
+      {/* Si on répond à un message, on affiche le bandeau */}
+      {replyTo && (
+        <View style={styles.replyContainer}>
+          <Text style={styles.replyText} numberOfLines={1}>
+            Répondre à : {replyTo.text}
+          </Text>
+          <TouchableOpacity onPress={onCancelReply} style={styles.cancelButton}>
+            <Text style={styles.cancelText}>×</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Menu d’ajout (fichier, image…) */}
       {showMenu && (
         <View style={styles.menuContainer}>
           <TouchableOpacity style={styles.menuItem}>
@@ -35,17 +61,20 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend }) => {
           </TouchableOpacity>
         </View>
       )}
+
       <View style={styles.inputContainer}>
         <TouchableOpacity onPress={toggleMenu}>
           <Icon name="plus-circle-outline" size={28} color="#5C6BC0" />
         </TouchableOpacity>
+
         <TextInput
           style={styles.input}
-          placeholder="Message ..."
+          placeholder="Message …"
           placeholderTextColor="#999"
           value={message}
           onChangeText={setMessage}
         />
+
         <TouchableOpacity onPress={handleSend}>
           <Icon name="send" size={24} color="#5C6BC0" />
         </TouchableOpacity>
@@ -53,6 +82,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend }) => {
     </View>
   );
 };
+
+export default ChatInput;
 
 const styles = StyleSheet.create({
   inputContainer: {
@@ -95,6 +126,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#5C6BC0',
   },
-});
 
-export default ChatInput;
+  // Bandeau « Répondre à »
+  replyContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginHorizontal: 12,
+    marginBottom: 6,
+  },
+  replyText: {
+    flex: 1,
+    fontStyle: 'italic',
+    color: '#555',
+  },
+  cancelButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
+  cancelText: {
+    fontSize: 18,
+    color: '#555',
+  },
+});

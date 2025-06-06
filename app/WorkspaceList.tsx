@@ -34,7 +34,7 @@ const WorkspaceList: React.FC = () => {
   const fetchWorkspaces = async () => {
     try {
       const response = await fetch(
-        "http://192.168.163.30:5263/api/Workspace/Joined",
+        "http://192.168.1.10:5263/api/Workspace/Joined",
         {
           headers: {
             Accept: "text/plain",

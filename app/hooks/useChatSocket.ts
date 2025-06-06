@@ -14,6 +14,7 @@ export interface ChatMessageDto {
   sendDate: string;
   senderId: number;
   receiverId: number;
+  parentId?: number;
 }
 
 /**
@@ -31,14 +32,13 @@ const useChatSocket = (
 
   useEffect(() => {
     const connect = async () => {
-      // Choose transport based on platform
       const transport =
         Platform.OS === "web"
           ? HttpTransportType.WebSockets
           : HttpTransportType.LongPolling;
 
       const connection = new HubConnectionBuilder()
-        .withUrl("http://192.168.163.30:5263/chatHub", {
+        .withUrl("http://192.168.1.10:5263/chatHub", {
           accessTokenFactory: () => token,
           transport,
         })
@@ -66,7 +66,7 @@ const useChatSocket = (
 
       // Subscribe to incoming private messages
       connection.on(
-        "ReceiveMessage",
+        "OnMessageReceived",
         (message: ChatMessageDto) => {
           onReceive(message);
         }
@@ -99,7 +99,7 @@ const useChatSocket = (
     content: string
   ): Promise<ChatMessageDto> => {
     const res = await fetch(
-      `http://192.168.163.30:5263/api/Message/PostForUser`,
+      `http://192.168.1.10:5263/api/Message/PostForUser`,
       {
         method: "POST",
         headers: {

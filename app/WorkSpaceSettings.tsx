@@ -42,7 +42,7 @@ export default function WorkspaceSettings() {
     (async () => {
       try {
         const res = await fetch(
-          `http://192.168.163.30:5263/api/Workspace/${id}`,
+          `http://192.168.1.10:5263/api/Workspace/${id}`,
           {
             headers: {
               Accept: "application/json",
@@ -100,7 +100,7 @@ export default function WorkspaceSettings() {
       }
 
       const res = await fetch(
-        `http://192.168.163.30:5263/api/Workspace/${id}`,
+        `http://192.168.1.10:5263/api/Workspace/${id}`,
         {
           method: "PATCH",
           headers: {
@@ -138,7 +138,7 @@ export default function WorkspaceSettings() {
     setLoadingDelete(true);
     try {
       const res = await fetch(
-        `http://192.168.163.30:5263/api/Workspace/${id}`,
+        `http://192.168.1.10:5263/api/Workspace/${id}`,
         {
           method: "DELETE",
           headers: {

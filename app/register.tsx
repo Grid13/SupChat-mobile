@@ -14,22 +14,63 @@ import { useRouter } from "expo-router";
 const Register = () => {
   const router = useRouter();
 
+  // États pour userName, email, password et confirm
+  const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
-  const handleRegister = () => {
-    if (!email || !password || !confirm) {
-      Alert.alert("Missing Fields", "Please fill in all fields.");
+  // URL de base de votre API – à remplacer par la vôtre
+  const API_BASE_URL = "https://votre-backend.com";
+
+  const handleRegister = async () => {
+    // Vérification des champs requis
+    if (!userName || !email || !password || !confirm) {
+      Alert.alert("Champs manquants", "Veuillez remplir tous les champs.");
       return;
     }
     if (password !== confirm) {
-      Alert.alert("Password Mismatch", "Passwords do not match.");
+      Alert.alert("Mot de passe différent", "Les mots de passe ne correspondent pas.");
       return;
     }
 
-    // Replace this with your register API logic
-    Alert.alert("Registered", `Welcome ${email}!`);
+    try {
+      // Construction du corps de la requête selon votre route
+      const body = {
+        userName: userName,
+        email: email,
+        password: password,
+      };
+
+      const response = await fetch(`http://192.168.1.10:5263/api/Account/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        // La route renvoie true en text/plain si tout s'est bien passé
+        const text = await response.text();
+        if (text === "true") {
+          Alert.alert("Inscription réussie", `Bienvenue ${userName} !`, [
+            {
+              text: "OK",
+              onPress: () => router.push("/login"),
+            },
+          ]);
+        }
+      } else {
+        // Si la réponse n'est pas OK, on affiche une erreur
+        const errorText = await response.text();
+        Alert.alert("Erreur d'inscription", errorText || "Une erreur est survenue.");
+      }
+    } catch (error) {
+      // Gestion des erreurs de réseau ou autres exceptions
+      console.error("Erreur lors de l'inscription :", error);
+      Alert.alert("Erreur", "Une erreur est survenue lors de l'inscription.");
+    }
   };
 
   return (
@@ -37,15 +78,24 @@ const Register = () => {
       <View style={styles.card}>
         <Text style={styles.title}>Create Account 🚀</Text>
         <Text style={styles.subtitle}>Please enter your information</Text>
-
         <View style={styles.switchContainer}>
-          <TouchableOpacity style={styles.switchButton} onPress={() => router.push("/login")}>
+          <TouchableOpacity
+            style={styles.switchButton}
+            onPress={() => router.push("/login")}
+          >
             <Text style={styles.switchText}>Sign In</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.switchButton}>
             <Text style={styles.activeSwitchText}>Sign Up</Text>
           </TouchableOpacity>
         </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Username"
+          value={userName}
+          autoCapitalize="none"
+          onChangeText={setUserName}
+        />
 
         <TextInput
           style={styles.input}
@@ -82,11 +132,17 @@ const Register = () => {
 
         <View style={styles.socialRow}>
           <TouchableOpacity style={styles.socialButton}>
-            <Image source={{ uri: "https://img.icons8.com/color/48/google-logo.png" }} style={styles.socialIcon} />
+            <Image
+              source={{ uri: "https://img.icons8.com/color/48/google-logo.png" }}
+              style={styles.socialIcon}
+            />
             <Text style={styles.socialText}>Google</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.socialButton}>
-            <Image source={{ uri: "https://img.icons8.com/fluency/48/facebook-new.png" }} style={styles.socialIcon} />
+            <Image
+              source={{ uri: "https://img.icons8.com/fluency/48/facebook-new.png" }}
+              style={styles.socialIcon}
+            />
             <Text style={styles.socialText}>Facebook</Text>
           </TouchableOpacity>
         </View>

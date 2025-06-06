@@ -53,7 +53,7 @@ const WorkspaceChat: React.FC = () => {
     setChannelsLoading(true);
     try {
       const res = await fetch(
-        `http://192.168.163.30:5263/api/Workspace/${id}/Channels`,
+        `http://192.168.1.10:5263/api/Workspace/${id}/Channels`,
         { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } }
       );
       const txt = await res.text();
@@ -79,7 +79,7 @@ const WorkspaceChat: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("http://192.168.163.30:5263/api/Account/Own", {
+        const res = await fetch("http://192.168.1.10:5263/api/Account/Own", {
           headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -100,7 +100,7 @@ const WorkspaceChat: React.FC = () => {
     (async () => {
       setMessagesLoading(true);
       try {
-        const url = `http://192.168.163.30:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
+        const url = `http://192.168.1.10:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
         const res = await fetch(url, {
           headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
         });

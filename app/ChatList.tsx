@@ -34,7 +34,7 @@ const ChatList: React.FC = () => {
   const fetchUsers = async () => {
     if (!token) return;
     try {
-      const res = await fetch("http://192.168.163.30:5263/api/User/Mp", {
+      const res = await fetch("http://192.168.1.10:5263/api/User/Mp", {
         headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
       });
       const text = await res.text();
@@ -52,7 +52,7 @@ const ChatList: React.FC = () => {
     if (!token) return;
     try {
       const res = await fetch(
-        "http://192.168.163.30:5263/api/User?pageNumber=1&pageSize=50",
+        "http://192.168.1.10:5263/api/User?pageNumber=1&pageSize=50",
         { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error(`Status ${res.status}`);
@@ -69,7 +69,7 @@ const ChatList: React.FC = () => {
   const fetchCurrentUser = async () => {
     if (!token) return;
     try {
-      const res = await fetch("http://192.168.163.30:5263/api/Account/Me", {
+      const res = await fetch("http://192.168.1.10:5263/api/Account/Me", {
         headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
