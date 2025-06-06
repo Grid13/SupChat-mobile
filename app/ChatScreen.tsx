@@ -53,10 +53,9 @@ const ChatScreen: React.FC = () => {
   // État pour le mode édition
   const [editing, setEditing] = useState<{ id: number; text: string } | null>(null);
 
-  // **Nouveaux états pour le drawer**
-  // drawerVisible : true si on doit afficher le drawer
+  // **États pour le drawer**
   const [drawerVisible, setDrawerVisible] = useState(false);
-  // On stocke l'id, le texte et isSender du message appuyé longuement
+  // stocke { id, text, isSender } du message sur lequel on a fait un long-press
   const [drawerMessage, setDrawerMessage] = useState<{
     id: number;
     text: string;
@@ -160,7 +159,7 @@ const ChatScreen: React.FC = () => {
     }
   }, [messages]);
 
-  // 4) Gestion du WebSocket
+  // 4) Gestion du WebSocket (ajout handleUpdate, handleDelete éventuellement)
   const handleReceive = useCallback(
     (m: ChatMessageDto) => {
       if (m.senderId === otherUserId) {
@@ -180,8 +179,6 @@ const ChatScreen: React.FC = () => {
     },
     [otherUserId, avatar]
   );
-
-  // Handle real-time message update
   const handleUpdate = useCallback(
     (updated: any) => {
       setMessages((prev) =>
@@ -194,8 +191,6 @@ const ChatScreen: React.FC = () => {
     },
     []
   );
-
-  // Handle real-time message delete
   const handleDelete = useCallback(
     (id: number) => {
       setMessages((prev) =>
@@ -205,9 +200,14 @@ const ChatScreen: React.FC = () => {
     []
   );
 
-  const { isConnected, sendMessage } = useChatSocket(token!, handleReceive, handleUpdate, handleDelete);
+  const { isConnected, sendMessage } = useChatSocket(
+    token!,
+    handleReceive,
+    handleUpdate,
+    handleDelete
+  );
 
-  // 5) On ouvre le drawer et on stocke isSender
+  // 5) Quand on fait un long-press, on ouvre le drawer
   const onMessageLongPress = (
     msgId: number,
     msgText: string,
@@ -217,7 +217,7 @@ const ChatScreen: React.FC = () => {
     setDrawerVisible(true);
   };
 
-  // 6) Supprimer un message
+  // 6) Supprimer un message (même code qu’avant)
   const deleteMessage = async (msgId: number) => {
     try {
       const res = await fetch(
@@ -234,7 +234,10 @@ const ChatScreen: React.FC = () => {
           prev.filter((m) => !(m.type === 'message' && m.id === msgId))
         );
       } else {
-        Alert.alert('Erreur serveur', `Impossible de supprimer (status ${res.status})`);
+        Alert.alert(
+          'Erreur serveur',
+          `Impossible de supprimer (status ${res.status})`
+        );
       }
     } catch (e: any) {
       Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
@@ -268,7 +271,10 @@ const ChatScreen: React.FC = () => {
         );
         setEditing(null);
       } else {
-        Alert.alert('Erreur serveur', `Impossible de modifier (code ${res.status})`);
+        Alert.alert(
+          'Erreur serveur',
+          `Impossible de modifier (code ${res.status})`
+        );
       }
     } catch (e: any) {
       Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
@@ -280,7 +286,11 @@ const ChatScreen: React.FC = () => {
     if (editing) return;
 
     try {
-      const body: { content: string; receiverId: number; parentId?: number } = {
+      const body: {
+        content: string;
+        receiverId: number;
+        parentId?: number;
+      } = {
         content: text,
         receiverId: otherUserId,
       };
@@ -330,7 +340,7 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  // 9) Actions du drawer
+  // 9) Handlers pour chaque action du drawer
   const onReplyFromDrawer = () => {
     if (drawerMessage) {
       setReplyTo({ id: drawerMessage.id, text: drawerMessage.text });
@@ -401,7 +411,7 @@ const ChatScreen: React.FC = () => {
                         avatar={msg.avatar}
                         parentId={msg.parentId}
                         parentText={parentText}
-                        // On passe également isSender pour décider du drawer
+                        // On transmet isSender pour savoir si on peut modifier/supprimer
                         onLongPress={() =>
                           onMessageLongPress(msg.id, msg.text, msg.isSender)
                         }
@@ -429,7 +439,7 @@ const ChatScreen: React.FC = () => {
             transparent
             onRequestClose={onCancelFromDrawer}
           >
-            {/* Overlay semi-transparent pour fermer le drawer si on touche à côté */}
+            {/* Overlay semi-transparent */}
             <TouchableOpacity
               style={styles.modalOverlay}
               activeOpacity={1}
@@ -459,14 +469,16 @@ const ChatScreen: React.FC = () => {
                     style={[styles.drawerButton, styles.deleteButton]}
                     onPress={onDeleteFromDrawer}
                   >
-                    <Text style={[styles.drawerButtonText, styles.deleteText]}>
+                    <Text
+                      style={[styles.drawerButtonText, styles.deleteText]}
+                    >
                       Supprimer
                     </Text>
                   </TouchableOpacity>
                 </>
               )}
 
-              {/* Annuler : toujours possible */}
+              {/* Annuler (toujours possible) */}
               <TouchableOpacity
                 style={styles.drawerButton}
                 onPress={onCancelFromDrawer}

@@ -1,1 +1,1 @@
-export default function Activities() { return null; }
+export { default } from "../Notification";
