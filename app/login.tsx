@@ -22,8 +22,8 @@ const Login = () => {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const [email, setEmail] = useState("admin@supchat.com");
-  const [password, setPassword] = useState("Soleil123!");
+  const [email, setEmail] = useState("bpt@test.com");
+  const [password, setPassword] = useState("Bpt123!");
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
 
