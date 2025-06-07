@@ -52,6 +52,7 @@
     "react-dom": "19.0.0",
     "react-hook-form": "^7.54.2",
     "react-native": "0.79.2",
+    "react-native-emoji-selector": "^0.2.0",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-modal": "^13.0.1",
     "react-native-paper": "^5.13.1",

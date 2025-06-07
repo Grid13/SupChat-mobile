@@ -13,11 +13,10 @@ interface ChatInputProps {
   onSend: (message: string, parentId: number | null) => void;
   replyTo: { id: number; text: string } | null;
   onCancelReply: () => void;
-
-  // Nouvelles props pour l’édition
   editing: { id: number; text: string } | null;
   onSaveEdit: (newText: string) => void;
   onCancelEdit: () => void;
+  onPickImage?: () => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -27,8 +26,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   editing,
   onSaveEdit,
   onCancelEdit,
+  onPickImage,
 }) => {
-  // Si on édite, on pré-remplit l’input avec le texte existant
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -41,10 +40,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
     const trimmed = message.trim();
     if (!trimmed) return;
     if (editing) {
-      // Si on est en mode édition, on sauvegarde la modification
       onSaveEdit(trimmed);
     } else {
-      // Sinon, on envoie un nouveau message ou une réponse
       onSend(trimmed, replyTo ? replyTo.id : null);
     }
     setMessage('');
@@ -65,11 +62,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
       {/* Si on est en mode « répondre » ET PAS en mode édition, on affiche le bandeau « Répondre à » */}
       {replyTo && !editing && (
         <View style={styles.replyContainer}>
-          <Text style={styles.replyText} numberOfLines={1}>
+          <Text style={[styles.replyText, { fontSize: 16, letterSpacing: 0 }]} numberOfLines={1}>
             Répondre à : {replyTo.text}
           </Text>
           <TouchableOpacity onPress={onCancelReply} style={styles.cancelButton}>
-            <Text style={styles.cancelText}>×</Text>
+            <Text style={[styles.cancelText, { fontSize: 18, letterSpacing: 0 }]}>×</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -77,16 +74,22 @@ const ChatInput: React.FC<ChatInputProps> = ({
       {/* Si on est en mode édition, on affiche un bandeau spécial */}
       {editing && (
         <View style={[styles.replyContainer, { backgroundColor: '#ffeeba' }]}>
-          <Text style={[styles.replyText, { fontWeight: 'bold' }]} numberOfLines={1}>
+          <Text style={[styles.replyText, { fontWeight: 'bold', fontSize: 16, letterSpacing: 0 }]} numberOfLines={1}>
             Modification : {editing.text}
           </Text>
           <TouchableOpacity onPress={cancelAllModes} style={styles.cancelButton}>
-            <Text style={styles.cancelText}>×</Text>
+            <Text style={[styles.cancelText, { fontSize: 18, letterSpacing: 0 }]}>×</Text>
           </TouchableOpacity>
         </View>
       )}
 
       <View style={styles.inputContainer}>
+        {/* Image picker button */}
+        {onPickImage && (
+          <TouchableOpacity onPress={onPickImage} style={styles.imageButton}>
+            <Icon name="image" size={26} color="#5C6BC0" />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity onPress={cancelAllModes} disabled={!editing && !replyTo}>
           <Icon
             name={editing || replyTo ? 'close-circle-outline' : 'plus-circle-outline'}
@@ -94,15 +97,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
             color={editing || replyTo ? '#E53935' : '#5C6BC0'}
           />
         </TouchableOpacity>
-
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            { fontSize: 16, letterSpacing: 0 }
+          ]}
           placeholder={editing ? 'Modifier votre message…' : 'Message…'}
           placeholderTextColor="#999"
           value={message}
           onChangeText={setMessage}
         />
-
         <TouchableOpacity onPress={handleSend}>
           <Icon
             name={editing ? 'check-circle-outline' : 'send'}
@@ -133,8 +137,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f3f4',
     borderRadius: 20,
     marginHorizontal: 10,
-    fontSize: 16,
+    fontSize: 16, // safe default
     color: '#333',
+    letterSpacing: 0, // ensure safe value
   },
   // Bandeau « Répondre à » et « Modification »
   replyContainer: {
@@ -151,13 +156,20 @@ const styles = StyleSheet.create({
     flex: 1,
     fontStyle: 'italic',
     color: '#555',
+    fontSize: 15, // ensure positive value
+    letterSpacing: 0, // ensure safe value
   },
   cancelButton: {
     marginLeft: 8,
     padding: 4,
   },
   cancelText: {
-    fontSize: 18,
+    fontSize: 18, // ensure positive value
     color: '#555',
+    letterSpacing: 0, // ensure safe value
+  },
+  imageButton: {
+    marginRight: 6,
+    padding: 2,
   },
 });

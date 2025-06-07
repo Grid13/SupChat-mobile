@@ -1,3 +1,4 @@
+// MessageBubble.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 
@@ -8,7 +9,8 @@ interface MessageBubbleProps {
   avatar?: string;
   onLongPress?: () => void;
   parentId?: number | null;
-  parentText?: string | null; // Nouveau : le texte du message parent
+  parentText?: string | null;
+  attachments?: string[]; // URLs d’images
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -17,8 +19,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   isSender,
   avatar,
   onLongPress,
-  parentId,
   parentText,
+  attachments,
 }) => {
   return (
     <TouchableOpacity
@@ -35,17 +37,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           isSender ? styles.senderBubbleContainer : styles.receiverBubbleContainer,
         ]}
       >
-        {/* 
-          Si parentText est non-null, on affiche ici le bandeau contenant
-          le texte du message parent, juste au-dessus de la bulle principale.
-        */}
-        {parentText ? (
+        {parentText && (
           <View style={styles.replyIndicator}>
             <Text style={styles.replyIndicatorText} numberOfLines={1}>
               {parentText}
             </Text>
           </View>
-        ) : null}
+        )}
 
         <View
           style={[
@@ -53,14 +51,30 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             isSender ? styles.senderBubble : styles.receiverBubble,
           ]}
         >
-          <Text
-            style={[
-              styles.text,
-              isSender ? { color: 'white' } : { color: 'black' },
-            ]}
-          >
-            {text}
-          </Text>
+          {text !== '' && (
+            <Text
+              style={[
+                styles.text,
+                isSender ? { color: 'white' } : { color: 'black' },
+              ]}
+            >
+              {text}
+            </Text>
+          )}
+
+          {/* → NOUVEAU : affichage des images reçues */}
+          {attachments && attachments.length > 0 && (
+            <View style={styles.attachmentsContainer}>
+              {attachments.map((uri, idx) => (
+                <Image
+                  key={idx}
+                  source={{ uri }}
+                  style={styles.attachmentImage}
+                  resizeMode="cover"
+                />
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.timeContainer}>
@@ -75,9 +89,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         </View>
       </View>
 
-      {isSender && avatar ? (
+      {isSender && avatar && (
         <Image source={{ uri: avatar }} style={styles.avatar} />
-      ) : null}
+      )}
     </TouchableOpacity>
   );
 };
@@ -93,15 +107,11 @@ const styles = StyleSheet.create({
   senderBubbleContainer: { alignItems: 'flex-end' },
   receiverBubbleContainer: { alignItems: 'flex-start' },
 
-  // Bandeau "parentText" (texte du message auquel on répond)
   replyIndicator: {
     backgroundColor: '#f0f0f0',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
-    borderBottomLeftRadius: 6,
-    borderBottomRightRadius: 6,
+    borderRadius: 6,
     marginBottom: 4,
     maxWidth: 240,
   },
@@ -140,6 +150,22 @@ const styles = StyleSheet.create({
   time: { fontSize: 12, color: 'gray' },
   senderTime: { marginRight: 10 },
   receiverTime: { marginLeft: 10 },
+
+  // → NOUVEAU : style du conteneur des images
+  attachmentsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+    gap: 6,
+  },
+  attachmentImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 10,
+    marginRight: 6,
+    marginTop: 4,
+    backgroundColor: '#eee',
+  },
 });
 
 export default MessageBubble;

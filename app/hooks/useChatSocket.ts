@@ -108,4 +108,5 @@ export interface ChatMessageDto {
   senderId: number;
   receiverId: number;
   parentId?: number;
+  attachments?: string[];
 }

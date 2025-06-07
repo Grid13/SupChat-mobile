@@ -22,6 +22,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import 'react-native-url-polyfill/auto';
 import useChatSocket, { ChatMessageDto } from './hooks/useChatSocket';
+import * as ImagePicker from 'expo-image-picker';
+import EmojiSelector, { Categories } from 'react-native-emoji-selector';
 
 type MessageItem =
   | { type: 'separator'; label: string }
@@ -33,6 +35,7 @@ type MessageItem =
       isSender: boolean;
       avatar: string;
       parentId?: number;
+      attachments?: string[]; // array of image URLs
     };
 
 const ChatScreen: React.FC = () => {
@@ -61,6 +64,9 @@ const ChatScreen: React.FC = () => {
     text: string;
     isSender: boolean;
   } | null>(null);
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const appendEmojiRef = useRef<((emoji: string) => void) | undefined>(undefined);
 
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -367,6 +373,93 @@ const ChatScreen: React.FC = () => {
     setDrawerVisible(false);
   };
 
+  // Add image picker handler
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Autorisez l’accès aux photos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+    if (result.canceled) return;
+    const uri = result.assets && result.assets[0]?.uri;
+    if (!uri) return;
+    const name = uri.split('/').pop()!;
+    const match = /\.(\w+)$/.exec(name);
+    const type = match ? `image/${match[1]}` : 'image';
+    const formData = new FormData();
+    formData.append('file', { uri, name, type } as any);
+
+    try {
+      const up = await fetch(
+        `http://192.168.1.10:5263/api/Attachment?attachmentType=ProfilePicture`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'text/plain',
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+      if (!up.ok) throw new Error(`Upload failed ${up.status}`);
+      const { id: attachmentId } = await up.json();
+      await sendImageMessage([attachmentId], [uri]);
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message);
+    }
+  };
+
+  const sendImageMessage = async (attachmentIds: string[], uris: string[]) => {
+    const body: any = { content: '', receiverId: otherUserId, attachments: attachmentIds };
+    if (replyTo) body.parentId = replyTo.id;
+    try {
+      const res = await fetch(
+        'http://192.168.1.10:5263/api/Message/PostForUser',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        }
+      );
+      if (res.ok) {
+        const msg = await res.json();
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'message',
+            id: msg.id,
+            text: msg.content,
+            time: formatTime(msg.sendDate),
+            isSender: true,
+            avatar: '',
+            parentId: msg.parentId,
+            attachments: uris,
+          },
+        ]);
+        setReplyTo(null);
+      } else {
+        throw new Error(`Status ${res.status}`);
+      }
+    } catch (e: any) {
+      Alert.alert('Erreur envoi', e.message);
+    }
+  };
+
+  // Handler to insert emoji into the input
+  const handleEmojiSelected = (emoji: string) => {
+    setShowEmojiPicker(false);
+    if (appendEmojiRef.current) {
+      appendEmojiRef.current(emoji);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -375,6 +468,21 @@ const ChatScreen: React.FC = () => {
       >
         <View style={styles.container}>
           <Header name={params.name as string} avatar={avatar as string} />
+
+          {/* Emoji Selector UI */}
+          {showEmojiPicker && (
+            <View style={{ height: 320 }}>
+              <EmojiSelector
+                onEmojiSelected={handleEmojiSelected}
+                category={Categories.all}
+                showTabs={true}
+                showSearchBar={true}
+                showHistory={true}
+                columns={8}
+                placeholder="Search emoji..."
+              />
+            </View>
+          )}
 
           <ScrollView
             ref={scrollViewRef}
@@ -396,9 +504,7 @@ const ChatScreen: React.FC = () => {
                     let parentText: string | null = null;
                     if (msg.parentId && msg.parentId > 0) {
                       const parentMsg = messages.find(
-                        (x) =>
-                          x.type === 'message' &&
-                          (x as any).id === msg.parentId
+                        (x) => x.type === 'message' && (x as any).id === msg.parentId
                       ) as { type: 'message'; id: number; text: string } | undefined;
                       parentText = parentMsg ? parentMsg.text : null;
                     }
@@ -411,6 +517,7 @@ const ChatScreen: React.FC = () => {
                         avatar={msg.avatar}
                         parentId={msg.parentId}
                         parentText={parentText}
+                        attachments={msg.attachments}
                         // On transmet isSender pour savoir si on peut modifier/supprimer
                         onLongPress={() =>
                           onMessageLongPress(msg.id, msg.text, msg.isSender)
@@ -425,11 +532,14 @@ const ChatScreen: React.FC = () => {
 
           <ChatInput
             onSend={handleSend}
+            onPickImage={pickImage}
             replyTo={replyTo}
             onCancelReply={() => setReplyTo(null)}
             editing={editing}
             onSaveEdit={saveEditedMessage}
             onCancelEdit={() => setEditing(null)}
+            onShowEmojiPicker={() => setShowEmojiPicker(true)}
+            setAppendEmojiCallback={cb => { appendEmojiRef.current = cb; }}
           />
 
           {/* Drawer (Modal) */}
