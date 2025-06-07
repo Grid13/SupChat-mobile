@@ -9,11 +9,15 @@ import {
   Switch,
   Alert,
 } from "react-native";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "./store/store";
+import { logout } from "./store/authSlice";
+import { useRouter } from "expo-router";
 
 const SettingsScreen = () => {
   const token = useSelector((state: RootState) => state.auth.token);
+  const dispatch = useDispatch();
+  const router = useRouter();
 
   const [profile, setProfile] = useState<any>(null);
   const [hideEmail, setHideEmail] = useState(true);
@@ -127,12 +131,52 @@ const SettingsScreen = () => {
 
       {/* ACTIONS */}
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.logoutBtn}>
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={() => {
+            dispatch(logout());
+            router.replace("/login");
+          }}
+        >
           <Text style={styles.logoutText}>Log Out ↩️</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.deleteBtn}
-          onPress={() => Alert.alert("Confirm", "Delete your account?")}
+          onPress={() => {
+            const userId = profile?.applicationUser?.id;
+            if (!userId) return;
+            Alert.alert(
+              "Confirm",
+              "Delete your account? This action cannot be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      const response = await fetch(
+                        `http://192.168.1.10:5263/api/User/${userId}`,
+                        {
+                          method: "DELETE",
+                          headers: {
+                            Accept: "application/json",
+                            Authorization: `Bearer ${token}`,
+                          },
+                        }
+                      );
+                      if (!response.ok) throw new Error(`Error ${response.status}`);
+                      dispatch(logout());
+                      router.replace("/login");
+                    } catch (err) {
+                      const message = err instanceof Error ? err.message : "Failed to delete account";
+                      Alert.alert("Error", message);
+                    }
+                  },
+                },
+              ]
+            );
+          }}
         >
           <Text style={styles.deleteText}>🗑️ Delete Account</Text>
         </TouchableOpacity>

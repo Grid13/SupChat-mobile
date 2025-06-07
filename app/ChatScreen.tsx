@@ -23,7 +23,6 @@ import { fr } from 'date-fns/locale';
 import 'react-native-url-polyfill/auto';
 import useChatSocket, { ChatMessageDto } from './hooks/useChatSocket';
 import * as ImagePicker from 'expo-image-picker';
-import EmojiSelector, { Categories } from 'react-native-emoji-selector';
 
 type MessageItem =
   | { type: 'separator'; label: string }
@@ -469,20 +468,7 @@ const ChatScreen: React.FC = () => {
         <View style={styles.container}>
           <Header name={params.name as string} avatar={avatar as string} />
 
-          {/* Emoji Selector UI */}
-          {showEmojiPicker && (
-            <View style={{ height: 320 }}>
-              <EmojiSelector
-                onEmojiSelected={handleEmojiSelected}
-                category={Categories.all}
-                showTabs={true}
-                showSearchBar={true}
-                showHistory={true}
-                columns={8}
-                placeholder="Search emoji..."
-              />
-            </View>
-          )}
+          
 
           <ScrollView
             ref={scrollViewRef}
@@ -538,8 +524,6 @@ const ChatScreen: React.FC = () => {
             editing={editing}
             onSaveEdit={saveEditedMessage}
             onCancelEdit={() => setEditing(null)}
-            onShowEmojiPicker={() => setShowEmojiPicker(true)}
-            setAppendEmojiCallback={cb => { appendEmojiRef.current = cb; }}
           />
 
           {/* Drawer (Modal) */}
