@@ -14,13 +14,21 @@ import MenuIcon from "react-native-vector-icons/MaterialCommunityIcons";
 interface HeaderProps {
   name: string;
   avatar: string;
+  onSearchPress?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ name, avatar }) => {
+const Header: React.FC<HeaderProps> = ({ name, avatar, onSearchPress }) => {
+  console.log('Header: received onSearchPress', typeof onSearchPress);
   const router = useRouter();
 
   const handleSearch = () => {
-    Alert.alert("Recherche", "Fonction de recherche à implémenter");
+    console.log('Header: onSearchPress is', typeof onSearchPress);
+    if (onSearchPress) { 
+      console.log('Header: calling onSearchPress');
+      onSearchPress(); 
+      return; 
+    }
+    Alert.alert("Erreur intégration", "La prop onSearchPress n'est pas transmise au Header. Vérifiez l'import et l'utilisation du composant Header dans votre écran.");
   };
 
   const handleMenu = () => {

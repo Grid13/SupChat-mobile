@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Text,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -68,6 +69,12 @@ const ChatScreen: React.FC = () => {
   const appendEmojiRef = useRef<((emoji: string) => void) | undefined>(undefined);
 
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // --- Recherche messages ---
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);
@@ -397,7 +404,8 @@ const ChatScreen: React.FC = () => {
         `http://192.168.1.10:5263/api/Attachment?attachmentType=ProfilePicture`,
         {
           method: 'POST',
-          headers: {
+          headers:
+           {
             Accept: 'text/plain',
             Authorization: `Bearer ${token}`,
           },
@@ -459,6 +467,54 @@ const ChatScreen: React.FC = () => {
     }
   };
 
+  // Handler pour la recherche
+  const handleSearch = async (text: string) => {
+    setSearchText(text);
+    if (!text.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const res = await fetch(
+        `http://192.168.1.10:5263/api/Message/SearchInUser?userId=${otherUserId}&query=${encodeURIComponent(text)}`,
+        {
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const body = await res.text();
+      if (!res.ok) {
+        // Ne rien afficher si erreur (pas d'Alert)
+        setSearchResults([]);
+        return;
+      }
+      const data = JSON.parse(body);
+      setSearchResults(Array.isArray(data) ? data : data.value || []);
+    } catch (e: any) {
+      // Ne rien afficher si erreur
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Scroll vers le message sélectionné
+  const scrollToMessage = (msgId: number) => {
+    const idx = messages.findIndex((m) => m.type === 'message' && m.id === msgId);
+    if (idx !== -1 && scrollViewRef.current) {
+      // ScrollView n'a pas scrollToIndex, mais on peut approximer
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: idx * 80, animated: true });
+      }, 100);
+    }
+    setShowSearch(false);
+    setSearchText('');
+    setSearchResults([]);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -466,9 +522,47 @@ const ChatScreen: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.container}>
-          <Header name={params.name as string} avatar={avatar as string} />
+          <Header name={params.name as string} avatar={avatar as string} onSearchPress={() => setShowSearch(true)} />
 
-          
+          {/* Barre de recherche messages */}
+          {showSearch && (
+            <View style={{ flexDirection: 'column', backgroundColor: '#f5f5f5', padding: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity onPress={() => setShowSearch(false)} style={{ padding: 8 }}>
+                  <Text style={{ fontSize: 18 }}>✕</Text>
+                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+                    <TextInput
+                      autoFocus
+                      value={searchText}
+                      onChangeText={handleSearch}
+                      placeholder="Tapez un mot-clé..."
+                      style={{ fontSize: 16, padding: 0 }}
+                    />
+                  </View>
+                </View>
+              </View>
+              {searchLoading && <Text style={{ marginTop: 8, color: '#888' }}>Recherche…</Text>}
+              {!searchLoading && searchResults.length > 0 && (
+                <View style={{ marginTop: 8, backgroundColor: '#fff', borderRadius: 8 }}>
+                  {searchResults.map((msg, i) => (
+                    <TouchableOpacity
+                      key={msg.id || i}
+                      onPress={() => scrollToMessage(msg.id)}
+                      style={{ padding: 10, borderBottomWidth: i < searchResults.length - 1 ? 1 : 0, borderColor: '#eee' }}
+                    >
+                      <Text numberOfLines={2} style={{ fontSize: 15 }}>{msg.content}</Text>
+                      <Text style={{ fontSize: 12, color: '#888' }}>{formatDay(msg.sendDate)} à {formatTime(msg.sendDate)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {!searchLoading && searchText && searchResults.length === 0 && (
+                <Text style={{ marginTop: 8, color: '#888' }}>Aucun résultat</Text>
+              )}
+            </View>
+          )}
 
           <ScrollView
             ref={scrollViewRef}

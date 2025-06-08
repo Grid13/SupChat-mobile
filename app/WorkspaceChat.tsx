@@ -79,7 +79,7 @@ const WorkspaceChat: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("http://192.168.1.10:5263/api/Account/Own", {
+        const res = await fetch("http://192.168.1.10:5263/api/Account/Me", {
           headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -95,18 +95,24 @@ const WorkspaceChat: React.FC = () => {
 
   // Récupère les messages pour le canal sélectionné
   useEffect(() => {
-    if (!selectedChannel || userId === null) return;
+    console.log("selectedChannel:", selectedChannel, "userId:", userId);
+    if (!selectedChannel || userId === null) {
+      console.log("Fetch not called: selectedChannel or userId missing");
+      return;
+    }
     let active = true;
     (async () => {
       setMessagesLoading(true);
       try {
         const url = `http://192.168.1.10:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
+        console.log("About to fetch messages from:", url);
         const res = await fetch(url, {
           headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
         });
         const txt = await res.text();
         let json: any = [];
         try { json = JSON.parse(txt); } catch {}
+        console.log("Fetched messages raw response:", json);
         let arr: any[] = Array.isArray(json)
           ? json
           : Array.isArray(json.value)
@@ -141,6 +147,7 @@ const WorkspaceChat: React.FC = () => {
 
         if (active) setMessages(formatted);
       } catch (err: any) {
+        console.error("Error fetching messages:", err);
         Alert.alert("Erreur API", err.message || "Impossible de charger les messages");
       } finally {
         active && setMessagesLoading(false);
@@ -243,7 +250,14 @@ const WorkspaceChat: React.FC = () => {
                 )
               )}
             </ScrollView>
-            <ChatInput onSend={handleSend} />
+            <ChatInput
+              onSend={handleSend}
+              replyTo={null}
+              onCancelReply={() => {}}
+              editing={null}
+              onSaveEdit={() => {}}
+              onCancelEdit={() => {}}
+            />
             <DropdownMenu
               visible={menuVisible}
               onClose={() => setMenuVisible(false)}
