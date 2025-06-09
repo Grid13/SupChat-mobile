@@ -1,38 +1,89 @@
 // MessageBubble.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store/store';
+import { useMessageSender } from '../../hooks/useMessageSender';
+import EmojiPicker from 'rn-emoji-keyboard';
 
+// Add parentId to the props interface
 interface MessageBubbleProps {
   text: string;
   time: string;
   isSender: boolean;
-  avatar?: string; // optional, direct avatar prop
-  onLongPress?: () => void;
-  parentId?: number | null;
+  senderId: number;
+  parentId?: number;
   parentText?: string | null;
   attachments?: string[];
+  onLongPress?: () => void;
+  id?: number;
+  reactions?: Array<{
+    id: number;
+    content: string;
+    messageId: number;
+    senderId: number;
+  }>;
+  onAddReaction?: (reaction: { id: number; content: string; messageId: number; senderId: number }) => void;
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
   text,
   time,
   isSender,
-  avatar,
-  onLongPress,
+  senderId,
+  parentId,
   parentText,
   attachments,
+  onLongPress,
+  id,
+  reactions = [],
+  onAddReaction,
 }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const token = useSelector((state: RootState) => state.auth.token);
+  const { avatarUrl } = useMessageSender(senderId, token);
+
+  const handleEmojiSelect = async (emoji: any) => {
+    if (!id) return;
+
+    try {
+      const res = await fetch(
+        `http://192.168.1.161:5263/api/Message/${id}/Reactions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content: emoji.emoji,
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error('Failed to add reaction');
+      const newReaction = await res.json();
+      if (onAddReaction && newReaction) {
+        onAddReaction(newReaction);
+      }
+      setIsOpen(false);
+    } catch (err) {
+      console.error('Error adding reaction:', err);
+    }
+  };
+
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       onLongPress={onLongPress}
+      onPress={() => setIsOpen(true)}
       style={[
         styles.container,
         isSender ? styles.senderContainer : styles.receiverContainer,
       ]}
     >
-      {!isSender && avatar && (
-        <Image source={{ uri: avatar }} style={styles.avatar} />
+      {!isSender && (
+        <Image source={{ uri: avatarUrl }} style={styles.avatar} />
       )}
       <View
         style={[
@@ -47,7 +98,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             </Text>
           </View>
         )}
-
         <View
           style={[
             styles.bubble,
@@ -64,7 +114,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               {text}
             </Text>
           )}
-
           {attachments && attachments.length > 0 && (
             <View style={styles.attachmentsContainer}>
               {attachments.map((uri, idx) => (
@@ -77,8 +126,31 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               ))}
             </View>
           )}
+          {/* Reactions styled like Discord/Slack, bottom left of bubble */}
+          {reactions.length > 0 && (
+            <View style={styles.reactionsDiscordStyle}>
+              {Object.entries(
+                reactions.reduce((acc, r) => {
+                  if (!acc[r.content]) acc[r.content] = { count: 0, mine: false };
+                  acc[r.content].count += 1;
+                  if (r.senderId === senderId) acc[r.content].mine = true;
+                  return acc;
+                }, {} as Record<string, { count: number; mine: boolean }>)
+              ).map(([emoji, { count, mine }]) => (
+                <View
+                  key={emoji}
+                  style={[
+                    styles.reactionDiscordBox,
+                    mine && { backgroundColor: '#5865F2', borderColor: '#5865F2' },
+                  ]}
+                >
+                  <Text style={styles.reactionDiscordEmoji}>{emoji}</Text>
+                  <Text style={styles.reactionDiscordCount}>{count}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
-
         <View style={styles.timeContainer}>
           <Text
             style={[
@@ -90,9 +162,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </Text>
         </View>
       </View>
-      {isSender && avatar && (
-        <Image source={{ uri: avatar }} style={styles.avatar} />
+      {isSender && (
+        <Image source={{ uri: avatarUrl }} style={styles.avatar} />
       )}
+
+      <EmojiPicker
+        onEmojiSelected={handleEmojiSelect}
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+      />
     </TouchableOpacity>
   );
 };
@@ -100,22 +178,33 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'flex-start', // Change from center to flex-start
+    alignItems: 'flex-start',
     marginVertical: 4,
     maxWidth: '80%',
+    paddingTop: 8, // Add padding to create space
   },
-  senderContainer: { justifyContent: 'flex-end', alignSelf: 'flex-end' },
-  receiverContainer: { justifyContent: 'flex-start', alignSelf: 'flex-start' },
-
+  senderContainer: {
+    justifyContent: 'flex-end',
+    alignSelf: 'flex-end',
+  },
+  receiverContainer: {
+    justifyContent: 'flex-start',
+    alignSelf: 'flex-start',
+  },
   avatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
+    marginLeft: 8, // Ajoutez marginLeft pour l'avatar à droite
     marginRight: 8,
-    marginTop: 4, // Add small top margin to align with message
+    marginTop: 0,
+    alignSelf: 'flex-start',
   },
-
-  bubbleContainer: { flexDirection: 'column', alignItems: 'flex-end' },
+  bubbleContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    marginTop: 2, // Add small top margin to create separation
+  },
   senderBubbleContainer: { alignItems: 'flex-end' },
   receiverBubbleContainer: { alignItems: 'flex-start' },
 
@@ -176,6 +265,69 @@ const styles = StyleSheet.create({
     marginRight: 6,
     marginTop: 4,
     backgroundColor: '#eee',
+  },
+
+  reactionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+  },
+  reactionsContainerUnder: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+    marginLeft: 8,
+    marginBottom: 2,
+    alignItems: 'center',
+  },
+  reactionsOnBubble: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginBottom: 4,
+    alignItems: 'center',
+  },
+  reaction: {
+    fontSize: 16,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  // Add Discord/Slack-like reaction styles
+  reactionsDiscordStyle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    marginLeft: 0,
+    gap: 6,
+    flexWrap: 'wrap', // Allow reactions to wrap to the next line
+    maxWidth: '100%', // Prevent overflow
+  },
+  reactionDiscordBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#23272f',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: '#444',
+    minWidth: 32,
+    justifyContent: 'center',
+  },
+  reactionDiscordEmoji: {
+    fontSize: 13, // smaller emoji
+    marginRight: 4,
+    color: '#fff',
+  },
+  reactionDiscordCount: {
+    fontSize: 12, // smaller count
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 

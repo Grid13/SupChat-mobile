@@ -18,6 +18,13 @@ type UseChannelSocketProps = {
   onReceive: (msg: ChannelMessageDto) => void;
   onUpdate?: (msg: any) => void;
   onDelete?: (id: number) => void;
+  onReactionAdded?: (reaction: {
+    id: number;
+    content: string;
+    messageId: number;
+    senderId: number;
+  }) => void;
+  onReactionDeleted?: (messageId: number, reactionId: number) => void;
   token: string;
 };
 
@@ -27,6 +34,8 @@ const useChannelSocket = ({
   onReceive,
   onUpdate,
   onDelete,
+  onReactionAdded,
+  onReactionDeleted,
   token,
 }: UseChannelSocketProps) => {
   // Abonnement aux events du channel
@@ -39,6 +48,13 @@ const useChannelSocket = ({
     });
     if (onUpdate) connection.on("onmessageupdated", onUpdate);
     if (onDelete) connection.on("onmessagedeleted", onDelete);
+    if (onReactionAdded) {
+      connection.on("OnReactionAdded", onReactionAdded);
+    }
+
+    if (onReactionDeleted) {
+      connection.on("OnReactionDeleted", onReactionDeleted);
+    }
 
     // Join le channel côté SignalR
     console.log("[SignalR] JoinChannel called for channelId:", channelId);
@@ -48,11 +64,13 @@ const useChannelSocket = ({
       connection.off("OnMessageReceived", onReceive);
       if (onUpdate) connection.off("onmessageupdated", onUpdate);
       if (onDelete) connection.off("onmessagedeleted", onDelete);
+      if (onReactionAdded) connection.off("OnReactionAdded", onReactionAdded);
+      if (onReactionDeleted) connection.off("OnReactionDeleted", onReactionDeleted);
       // Optionnel: LeaveChannel si besoin
       console.log("[SignalR] LeaveChannel called for channelId:", channelId);
       connection.invoke("LeaveChannel", channelId).catch(() => {});
     };
-  }, [connection, channelId, onReceive, onUpdate, onDelete]);
+  }, [connection, channelId, onReceive, onUpdate, onDelete, onReactionAdded, onReactionDeleted]);
 
   // Envoi d'un message dans le channel via l'API REST
   const sendMessage = useCallback(

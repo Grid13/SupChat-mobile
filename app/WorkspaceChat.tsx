@@ -40,10 +40,16 @@ type MessageItem =
       text: string;
       time: string;
       isSender: boolean;
-      avatar?: string;
+      senderId: number;
       parentId?: number;
       parentText?: string | null;
       attachments?: string[];
+      reactions?: Array<{
+        id: number;
+        content: string;
+        messageId: number;
+        senderId: number;
+      }>;
     };
 
 // Add these types at the top with other types
@@ -172,9 +178,7 @@ const WorkspaceChat: React.FC = () => {
 
   // Récupère les messages pour le canal sélectionné
   useEffect(() => {
-    // console.log("selectedChannel:", selectedChannel, "userId:", userId);
     if (!selectedChannel || userId === null) {
-      // console.log("Fetch not called: selectedChannel or userId missing");
       return;
     }
     let active = true;
@@ -182,14 +186,12 @@ const WorkspaceChat: React.FC = () => {
       setMessagesLoading(true);
       try {
         const url = `http://192.168.1.161:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
-        // console.log("About to fetch messages from:", url);
         const res = await fetch(url, {
           headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
         });
         const txt = await res.text();
         let json: any = [];
         try { json = JSON.parse(txt); } catch {}
-        // console.log("Fetched messages raw response:", json);
         let arr: any[] = Array.isArray(json)
           ? json
           : Array.isArray(json.value)
@@ -199,25 +201,44 @@ const WorkspaceChat: React.FC = () => {
           : [];
         arr = arr.slice().reverse();
 
+        // Fetch reactions for each message
+        const messagesWithReactions = await Promise.all(
+          arr.map(async (msg) => {
+            let reactions = [];
+            try {
+              const rRes = await fetch(`http://192.168.1.161:5263/api/Message/${msg.id}/Reactions`, {
+                headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
+              });
+              if (rRes.ok) {
+                const rText = await rRes.text();
+                try { reactions = JSON.parse(rText); } catch {}
+              }
+            } catch {}
+            // Fix: set type as literal 'message'
+            return {
+              type: 'message' as const,
+              id: msg.id,
+              text: msg.content,
+              time: `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(msg.sendDate).getMinutes().toString().padStart(2, '0')}`,
+              isSender: msg.senderId === userId,
+              senderId: msg.senderId,
+              parentId: msg.parentId,
+              attachments: msg.attachments,
+              reactions: reactions || [],
+            };
+          })
+        );
+
         // Formatage date/heure et groupement par jour
         const formatted: MessageItem[] = [];
         let currentDay: string | null = null;
-        arr.forEach(msg => {
-          const day = format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr });
+        messagesWithReactions.forEach(msg => {
+          const day = format(new Date(arr.find(m => m.id === msg.id)?.sendDate), "d MMMM yyyy", { locale: fr });
           if (day !== currentDay) {
             formatted.push({ type: "separator", label: day });
             currentDay = day;
           }
-          formatted.push({
-            type: "message",
-            id: msg.id,
-            text: msg.content,
-            time: `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(msg.sendDate).getMinutes().toString().padStart(2, '0')}`,
-            isSender: msg.senderId === userId,
-            avatar: msg.senderId === userId ? '' : workspaceAvatar,
-            parentId: msg.parentId,
-            attachments: msg.attachments,
-          });
+          formatted.push(msg);
         });
 
         if (active) setMessages(formatted);
@@ -427,7 +448,6 @@ const WorkspaceChat: React.FC = () => {
   // Ajoute le message reçu via SignalR dans la liste
   const handleReceiveSocket = useCallback(
     (msg: any) => {
-      // Vérifie que le message est bien pour le channel courant
       if (!selectedChannel || msg.channelId !== selectedChannel.id) return;
       const day = format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr });
       const time = `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(
@@ -444,14 +464,14 @@ const WorkspaceChat: React.FC = () => {
           text: msg.content,
           time,
           isSender: msg.senderId === userId,
-          avatar: msg.senderId === userId ? '' : workspaceAvatar,
+          senderId: msg.senderId,
           parentId: msg.parentId,
           attachments: msg.attachments,
         });
         return copy;
       });
     },
-    [selectedChannel, userId, workspaceAvatar]
+    [selectedChannel, userId]  // Remove workspaceAvatar from dependencies
   );
 
   // Abonnement au channel via SignalR
@@ -699,7 +719,23 @@ const WorkspaceChat: React.FC = () => {
                     }
                     return (
                       <View ref={ref} key={(msg as any).id ?? idx}>
-                        <MessageBubble {...msg} />
+                        <MessageBubble
+                          {...msg}
+                          onAddReaction={(reaction) => {
+                            setMessages((prevMsgs) =>
+                              prevMsgs.map((m) => {
+                                if (m.type === 'message' && m.id === msg.id) {
+                                  // Avoid duplicate reactions
+                                  const reactions = Array.isArray(m.reactions) ? m.reactions : [];
+                                  if (!reactions.find(r => r.id === reaction.id)) {
+                                    return { ...m, reactions: [...reactions, reaction] };
+                                  }
+                                }
+                                return m;
+                              })
+                            );
+                          }}
+                        />
                       </View>
                     );
                   }

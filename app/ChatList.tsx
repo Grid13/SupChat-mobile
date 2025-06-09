@@ -29,6 +29,8 @@ const ChatList: React.FC = () => {
   const [searchText, setSearchText] = useState("");
   const animatedHeight = useState(new Animated.Value(0))[0];
   const [newMessageVisible, setNewMessageVisible] = useState(false);
+  const [botNameModalVisible, setBotNameModalVisible] = useState(false);
+  const [botName, setBotName] = useState('');
 
   // Fetch existing private chats
   const fetchUsers = async () => {
@@ -150,6 +152,47 @@ const ChatList: React.FC = () => {
     );
   };
 
+  const createBot = async (name: string) => {
+    try {
+      console.log('Creating bot with name:', name);
+      const res = await fetch('http://192.168.1.161:5263/api/Bot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'text/plain'
+        },
+        body: JSON.stringify({
+          username: name
+        })
+      });
+
+      console.log('Bot creation response status:', res.status);
+      const responseText = await res.text();
+      console.log('Bot creation response:', responseText);
+
+      if (!res.ok) throw new Error(`Failed to create bot: ${res.status} - ${responseText}`);
+      
+      const bot = JSON.parse(responseText);
+      console.log('Parsed bot data:', bot);
+      
+      handlePress({
+        id: bot.userId,
+        firstName: bot.userUsername,
+        image: `https://ui-avatars.com/api/?name=Bot&background=6B8AFD&color=fff`
+      });
+      
+      setNewMessageVisible(false);
+      setBotNameModalVisible(false);
+      setBotName('');
+      fetchUsers();
+      
+    } catch (err: any) {
+      console.error('Bot creation error:', err);
+      Alert.alert('Error', err.message || 'Failed to create bot');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -180,7 +223,17 @@ const ChatList: React.FC = () => {
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Nouvelle conversation</Text>
-            <TouchableOpacity onPress={() => setNewMessageVisible(false)}><Icon name="close" size={24} /></TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity 
+                onPress={() => setBotNameModalVisible(true)}
+                style={styles.botButton}
+              >
+                <Text style={styles.botButtonText}>🤖 Add Bot</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setNewMessageVisible(false)}>
+                <Icon name="close" size={24} />
+              </TouchableOpacity>
+            </View>
           </View>
           <FlatList
             data={availableUsers}
@@ -190,6 +243,43 @@ const ChatList: React.FC = () => {
             showsVerticalScrollIndicator={false}
           />
         </SafeAreaView>
+      </Modal>
+
+      {/* Bot name modal */}
+      <Modal visible={botNameModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.botNameModal}>
+            <Text style={styles.modalTitle}>Name your bot</Text>
+            <TextInput
+              style={styles.botNameInput}
+              value={botName}
+              onChangeText={setBotName}
+              placeholder="Enter bot name"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setBotNameModalVisible(false);
+                  setBotName('');
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.createButton]}
+                onPress={() => {
+                  if (botName.trim()) {
+                    createBot(botName.trim());
+                  }
+                }}
+              >
+                <Text style={styles.createButtonText}>Create</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -211,6 +301,64 @@ const styles = StyleSheet.create({
   preview: { fontSize: 14, color: "#666" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 15, borderBottomWidth: 1, borderColor: "#ddd" },
   modalTitle: { fontSize: 18, fontWeight: "bold" },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  botButton: {
+    backgroundColor: '#6B8AFD',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  botButtonText: {
+    color: '#fff',
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  botNameModal: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  botNameInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  modalButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  cancelButton: {
+    backgroundColor: '#f5f5f5',
+  },
+  createButton: {
+    backgroundColor: '#6B8AFD',
+  },
+  cancelButtonText: {
+    color: '#666',
+  },
+  createButtonText: {
+    color: 'white',
+    fontWeight: '500',
+  },
 });
 
 export default ChatList;

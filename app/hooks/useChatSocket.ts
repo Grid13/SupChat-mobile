@@ -15,7 +15,9 @@ const useChatMessages = (
   token: string,
   onReceive: (message: ChatMessageDto) => void,
   onUpdate?: (message: any) => void,
-  onDelete?: (id: number) => void
+  onDelete?: (id: number) => void,
+  onReactionAdded?: (reaction: { id: number, content: string, messageId: number, senderId: number }) => void,
+  onReactionDeleted?: (messageId: number, reactionId: number) => void
 ) => {
   const [isConnected, setIsConnected] = useState(false);
   const connectionRef = useRef<HubConnection | null>(null);
@@ -38,6 +40,12 @@ const useChatMessages = (
     }
     if (typeof onDelete === 'function') {
       connection.on("onmessagedeleted", onDelete);
+    }
+    if (onReactionAdded) {
+      connection.on("OnReactionAdded", onReactionAdded);
+    }
+    if (onReactionDeleted) {
+      connection.on("OnReactionDeleted", onReactionDeleted);
     }
 
     // Sur reconnection automatique, si la reprise a réussi, on passe isConnected à true
@@ -70,7 +78,7 @@ const useChatMessages = (
       connectionRef.current = null;
       setIsConnected(false);
     };
-  }, [token, onReceive, onUpdate, onDelete]);
+  }, [token, onReceive, onUpdate, onDelete, onReactionAdded, onReactionDeleted]);
 
   // 2) Fonction pour envoyer un message à un utilisateur donné via HTTP
   const sendMessage = useCallback(

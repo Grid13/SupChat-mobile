@@ -33,9 +33,9 @@ type MessageItem =
       text: string;
       time: string;
       isSender: boolean;
-      avatar: string;
+      senderId: number; // Replace avatar with senderId
       parentId?: number;
-      attachments?: string[]; // array of image URLs
+      attachments?: string[];
     };
 
 const ChatScreen: React.FC = () => {
@@ -144,7 +144,7 @@ const ChatScreen: React.FC = () => {
           text: m.content,
           time: formatTime(m.sendDate),
           isSender: m.senderId === myUserId,
-          avatar: m.senderId === myUserId ? '' : avatar || '',
+          senderId: m.senderId, // Use senderId instead of avatar
           parentId: m.parentId,
         });
       });
@@ -183,7 +183,7 @@ const ChatScreen: React.FC = () => {
             text: m.content,
             time: formatTime(m.sendDate),
             isSender: false,
-            avatar: avatar || '',
+            senderId: m.senderId, // Use senderId instead of avatar
             parentId: m.parentId,
           },
         ]);
@@ -339,7 +339,7 @@ const ChatScreen: React.FC = () => {
             text: returned.content,
             time: formatTime(returned.sendDate),
             isSender: true,
-            avatar: '',
+            senderId: myUserId!, // Add senderId for sent messages
             parentId: returned.parentId,
           },
         ]);
@@ -445,7 +445,7 @@ const ChatScreen: React.FC = () => {
             text: msg.content,
             time: formatTime(msg.sendDate),
             isSender: true,
-            avatar: '',
+            senderId: myUserId!, // Add senderId for sent messages
             parentId: msg.parentId,
             attachments: uris,
           },
@@ -594,11 +594,10 @@ const ChatScreen: React.FC = () => {
                         text={msg.text}
                         time={msg.time}
                         isSender={msg.isSender}
-                        avatar={msg.avatar}
+                        senderId={msg.senderId} // Replace avatar with senderId
                         parentId={msg.parentId}
                         parentText={parentText}
                         attachments={msg.attachments}
-                        // On transmet isSender pour savoir si on peut modifier/supprimer
                         onLongPress={() =>
                           onMessageLongPress(msg.id, msg.text, msg.isSender)
                         }
