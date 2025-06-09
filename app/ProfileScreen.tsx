@@ -16,6 +16,7 @@ import { logout } from "./store/authSlice";
 import { useRouter } from "expo-router";
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as ImagePicker from 'expo-image-picker';
 
 const SettingsScreen = () => {
   const token = useSelector((state: RootState) => state.auth.token);
@@ -31,12 +32,14 @@ const SettingsScreen = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [profileImageBase64, setProfileImageBase64] = useState<string | null>(null);
 
   const fetchProfile = async () => {
     if (!token) return;
 
     try {
-      const response = await fetch("http://192.168.1.10:5263/api/Account/Me", {
+      const response = await fetch("http://192.168.1.161:5263/api/Account/Me", {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
@@ -44,23 +47,22 @@ const SettingsScreen = () => {
       });
       if (!response.ok) throw new Error(`Error ${response.status}`);
       const json = await response.json();
-
       setProfile({
         email: json.email || "unknown@example.com",
         phone: json.phoneNumber || "Not provided",
         firstName: json.applicationUser?.firstName || "Unknown",
         lastName: json.applicationUser?.lastName || "-",
         image:
-          json.applicationUser?.image ||
-          "https://ui-avatars.com/api/?name=" +
-            encodeURIComponent(json.applicationUser?.firstName || "User"),
+          json.applicationUser?.profilePictureId
+            ? `http://192.168.1.161:5263/api/Attachment/${json.applicationUser.profilePictureId}`
+            : "https://ui-avatars.com/api/?name=" +
+              encodeURIComponent(json.applicationUser?.firstName || "User"),
         status: json.applicationUser?.statusLocalized || "Unknown",
         language: json.applicationUser?.languageLocalized || "English",
         theme: json.applicationUser?.themeLocalized || "Light",
-        applicationUser: json.applicationUser, // <-- add this line
+        applicationUser: json.applicationUser,
       });
     } catch (err: any) {
-      console.error("Failed to load profile:", err);
       Alert.alert("Error", err.message || "Unable to load profile");
     }
   };
@@ -68,6 +70,33 @@ const SettingsScreen = () => {
   useEffect(() => {
     fetchProfile();
   }, [token]);
+
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      if (profile?.image && profile.image.startsWith('http://192.168.1.161:5263/api/Attachment/')) {
+        try {
+          const res = await fetch(profile.image, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const blob = await res.blob();
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setProfileImageBase64(reader.result as string);
+            };
+            reader.readAsDataURL(blob);
+          } else {
+            setProfileImageBase64(null);
+          }
+        } catch (e) {
+          setProfileImageBase64(null);
+        }
+      } else {
+        setProfileImageBase64(null);
+      }
+    };
+    fetchProfileImage();
+  }, [profile?.image, token]);
 
   const handleChangePassword = async () => {
     if (!token) return;
@@ -79,7 +108,7 @@ const SettingsScreen = () => {
       return Alert.alert("Error", "User ID not found");
     }
     try {
-      const response = await fetch(`http://192.168.1.10:5263/api/User/${userId}/Password`, {
+      const response = await fetch(`http://192.168.1.161:5263/api/User/${userId}/Password`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -95,7 +124,6 @@ const SettingsScreen = () => {
       Alert.alert("Success", "Password changed successfully");
       setShowPasswordModal(false);
     } catch (err: any) {
-      console.error("Failed to change password:", err);
       Alert.alert("Error", err.message || "Unable to change password");
     }
   };
@@ -103,7 +131,7 @@ const SettingsScreen = () => {
   const handleExportData = async () => {
     if (!token) return;
     try {
-      const downloadUrl = 'http://192.168.1.10:5263/api/User/Export';
+      const downloadUrl = 'http://192.168.1.161:5263/api/User/Export';
       const fileUri = FileSystem.documentDirectory + 'export-user-data.zip';
       const response = await FileSystem.downloadAsync(downloadUrl, fileUri, {
         headers: {
@@ -119,8 +147,68 @@ const SettingsScreen = () => {
         Alert.alert('File saved', `File saved to: ${response.uri}`);
       }
     } catch (err: any) {
-      console.error('Export failed:', err);
       Alert.alert('Error', err.message || 'Failed to export data');
+    }
+  };
+
+  const handlePickProfileImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets[0]?.uri) {
+        setUploading(true);
+        const uri = result.assets[0].uri;
+        const filename = uri.split('/').pop() || 'profile.jpg';
+        const formData = new FormData();
+        formData.append('file', {
+          uri,
+          name: filename,
+          type: 'image/jpeg',
+        } as any);
+        const res = await fetch('http://192.168.1.161:5263/api/Attachment?attachmentType=ProfilePicture', {
+          method: 'POST',
+          headers: {
+            Accept: 'text/plain',
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+        if (!res.ok) throw new Error('Upload failed');
+        const data = await res.json();
+        // Use the fileId to construct the image URL for GET /api/Attachment/{fileId}
+        const imageUrl = `http://192.168.1.161:5263/api/Attachment/${data.id}`;
+        // PATCH to update profile picture for user
+        const userId = profile?.applicationUser?.id;
+        if (userId && data.id) {
+          const patchRes = await fetch(`http://192.168.1.161:5263/api/User/${userId}/ProfilePicture`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ attachmentId: data.id }),
+          });
+          if (!patchRes.ok) {
+            Alert.alert('Error', 'Failed to update profile picture on server');
+          }
+        }
+        // Set the profile image to the direct GET /api/Attachment/{fileId} URL
+        setProfile((p: any) => {
+          const next = { ...p, image: imageUrl };
+          return next;
+        });
+        // Refresh the profile from the server to get the latest info (including image)
+        await fetchProfile();
+        Alert.alert('Success', 'Profile picture updated!');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to update profile picture');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -166,7 +254,25 @@ const SettingsScreen = () => {
       <ScrollView contentContainerStyle={styles.container}>
         {/* PROFILE CARD */}
         <View style={styles.card}>
-          <Image source={{ uri: profile?.image }} style={styles.avatar} />
+          <View style={{ alignItems: 'center', marginBottom: 12 }}>
+            <TouchableOpacity onPress={handlePickProfileImage} disabled={uploading} style={{}}>
+              {/* Use base64 image if available, else fallback to profile.image */}
+              <View style={{ position: 'relative' }}>
+                {profileImageBase64 ? (
+                  <Image source={{ uri: profileImageBase64 }} style={styles.avatar} />
+                ) : (
+                  <Image source={{ uri: profile?.image }} style={styles.avatar} />
+                )}
+                {/* Black and white pencil icon in lower right, over the avatar */}
+                <View style={styles.pencilIconAbsolute}>
+                  <Image
+                    source={{ uri: 'https://cdn-icons-png.flaticon.com/512/84/84380.png' }}
+                    style={styles.pencilIcon}
+                  />
+                </View>
+              </View>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.name}>
             {profile?.firstName} {profile?.lastName}
           </Text>
@@ -253,7 +359,7 @@ const SettingsScreen = () => {
               if (!confirm) return;
               try {
                 const response = await fetch(
-                  `http://192.168.1.10:5263/api/User/${userId}`,
+                  `http://192.168.1.161:5263/api/User/${userId}`,
                   {
                     method: "DELETE",
                     headers: {
@@ -327,8 +433,22 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    alignSelf: "center",
-    marginBottom: 12,
+  },
+  pencilIconAbsolute: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    zIndex: 10,
+  },
+  pencilIcon: {
+    width: 20,
+    height: 20,
+    tintColor: '#000', // black and white
   },
   name: { fontSize: 20, fontWeight: "bold", textAlign: "center", marginBottom: 4 },
   role: { fontSize: 16, textAlign: "center", color: "#666" },

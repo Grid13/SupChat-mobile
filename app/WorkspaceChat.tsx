@@ -27,19 +27,65 @@ import { fr } from "date-fns/locale";
 import useChannelSocket from "./hooks/useChannelSocket";
 import { useSocket } from "./hooks/SocketProvider";
 import * as ImagePicker from "expo-image-picker";
+import { useProfileImage } from "./hooks/useProfileImage";
 
-// Définition du type pour messages et séparateurs
+// MessageItem type for WorkspaceChat
+// Copied from ChatScreen.tsx and adapted for channel messages
 
 type MessageItem =
-  | { type: 'message'; text: string; time: string; isSender: boolean; avatar: string; parentId?: number; attachments?: string[] }
-  | { type: 'separator'; label: string };
+  | { type: 'separator'; label: string }
+  | {
+      type: 'message';
+      id?: number;
+      text: string;
+      time: string;
+      isSender: boolean;
+      avatar?: string;
+      parentId?: number;
+      parentText?: string | null;
+      attachments?: string[];
+    };
+
+// Add these types at the top with other types
+type UnifiedSearchResult = {
+  channelList: Array<{
+    id: number;
+    name: string;
+    visibility: string;
+    visibilityLocalized: string;
+    workspaceId: number;
+  }>;
+  userList: Array<{
+    id: number;
+    firstName: string;
+    lastName: string | null;
+    status: string;
+    statusLocalized: string;
+    profilePictureId?: string;
+  }>;
+  messageList: Array<{
+    id: number;
+    content: string;
+    sendDate: string;
+    senderId: number;
+    senderApplicationUserUsername: string;
+    channelId: number;
+    parentId: number;
+  }>;
+  attachmentList: Array<{
+    id: string;
+    name: string;
+    type: string;
+    typeLocalized: string;
+    ownerId: number;
+  }>;
+};
 
 const WorkspaceChat: React.FC = () => {
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   const { id, name, avatar } = useLocalSearchParams();
-  const avatarUrl = Array.isArray(avatar) ? avatar[0] : avatar || "";
   const token = useSelector((state: RootState) => state.auth.token);
   const { connection } = useSocket();
 
@@ -64,13 +110,27 @@ const WorkspaceChat: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [unifiedSearchResults, setUnifiedSearchResults] = useState<UnifiedSearchResult | null>(null);
+
+  // Compute workspaceAvatar using profile picture if available, with hook for protected images
+  let workspaceAvatarUrl = typeof avatar === 'string' && avatar
+    ? avatar
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(name as string || 'Workspace')}`;
+  const tokenStr = token || "";
+  const avatarBase64 = useProfileImage(
+    workspaceAvatarUrl.startsWith("http://192.168.1.161:5263/api/Attachment/")
+      ? workspaceAvatarUrl
+      : undefined,
+    tokenStr
+  );
+  const workspaceAvatar = avatarBase64 || workspaceAvatarUrl;
 
   // Récupère la liste des canaux du workspace
   const fetchChannels = useCallback(async () => {
     setChannelsLoading(true);
     try {
       const res = await fetch(
-        `http://192.168.1.10:5263/api/Workspace/${id}/Channels`,
+        `http://192.168.1.161:5263/api/Workspace/${id}/Channels`,
         { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } }
       );
       const txt = await res.text();
@@ -96,7 +156,7 @@ const WorkspaceChat: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("http://192.168.1.10:5263/api/Account/Me", {
+        const res = await fetch("http://192.168.1.161:5263/api/Account/Me", {
           headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -121,7 +181,7 @@ const WorkspaceChat: React.FC = () => {
     (async () => {
       setMessagesLoading(true);
       try {
-        const url = `http://192.168.1.10:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
+        const url = `http://192.168.1.161:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
         // console.log("About to fetch messages from:", url);
         const res = await fetch(url, {
           headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
@@ -150,15 +210,13 @@ const WorkspaceChat: React.FC = () => {
           }
           formatted.push({
             type: "message",
+            id: msg.id,
             text: msg.content,
-            time: `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(
-              msg.sendDate
-            )
-              .getMinutes()
-              .toString()
-              .padStart(2, '0')}`,
+            time: `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(msg.sendDate).getMinutes().toString().padStart(2, '0')}`,
             isSender: msg.senderId === userId,
-            avatar: msg.senderId === userId ? "" : avatarUrl,
+            avatar: msg.senderId === userId ? '' : workspaceAvatar,
+            parentId: msg.parentId,
+            attachments: msg.attachments,
           });
         });
 
@@ -171,7 +229,7 @@ const WorkspaceChat: React.FC = () => {
       }
     })();
     return () => { active = false; };
-  }, [selectedChannel, userId, token, avatarUrl]);
+  }, [selectedChannel, userId, token, workspaceAvatar]);
 
   // Scroll vers le bas à chaque nouveau message
   useEffect(() => { scrollViewRef.current?.scrollToEnd({ animated: true }); }, [messages]);
@@ -206,7 +264,7 @@ const WorkspaceChat: React.FC = () => {
 
     try {
       const up = await fetch(
-        `http://192.168.1.10:5263/api/Attachment?attachmentType=ChannelMessage`,
+        `http://192.168.1.161:5263/api/Attachment?attachmentType=ChannelMessage`,
         {
           method: "POST",
           headers: {
@@ -235,7 +293,7 @@ const WorkspaceChat: React.FC = () => {
     if (replyTo) body.parentId = replyTo.id;
     try {
       const res = await fetch(
-        "http://192.168.1.10:5263/api/Message/PostInChannel",
+        "http://192.168.1.161:5263/api/Message/PostInChannel",
         {
           method: "POST",
           headers: {
@@ -268,7 +326,7 @@ const WorkspaceChat: React.FC = () => {
     if (replyTo) body.parentId = replyTo.id;
     try {
       const res = await fetch(
-        "http://192.168.1.10:5263/api/Message/PostInChannel",
+        "http://192.168.1.161:5263/api/Message/PostInChannel",
         {
           method: "POST",
           headers: {
@@ -289,34 +347,59 @@ const WorkspaceChat: React.FC = () => {
     }
   };
 
-  // Handler pour la recherche dans le channel
+  // Replace the existing handleSearch with this one
   const handleSearch = async (text: string) => {
     setSearchText(text);
-    if (!selectedChannel || !text.trim()) {
+    if (!text.trim()) {
       setSearchResults([]);
+      setUnifiedSearchResults(null);
       return;
     }
     setSearchLoading(true);
     try {
-      const url = `http://192.168.1.10:5263/api/Message/SearchInChannel?channelId=${selectedChannel.id}&search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`;
+      const url = `http://192.168.1.161:5263/api/Workspace/${id}/UnifiedSearch?search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`;
       const res = await fetch(url, {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
       });
-      const body = await res.text();
-      if (!res.ok) {
-        setSearchResults([]);
-        return;
+      const data = await res.json();
+      // Filter out current user from userList
+      if (data.userList) {
+        data.userList = data.userList.filter((user: { id: number }) => user.id !== userId);
       }
-      const data = JSON.parse(body);
-      setSearchResults(Array.isArray(data) ? data : data.value || []);
-    } catch {
-      setSearchResults([]);
+      setUnifiedSearchResults(data);
+    } catch (err) {
+      console.error('Search failed:', err);
+      setUnifiedSearchResults(null);
     } finally {
       setSearchLoading(false);
     }
+  };
+
+  // Add this handler
+  const handleSearchResultPress = (channelId: number, messageId?: number) => {
+    const channel = channels.find(c => c.id === channelId);
+    if (channel) {
+      setSelectedChannel(channel);
+      setShowSearch(false);
+      if (messageId) {
+        // Let the UI update first, then scroll
+        setTimeout(() => scrollToMessage(messageId), 300);
+      }
+    }
+  };
+
+  // Add state debug effect
+  useEffect(() => {
+    console.log('infoVisible state changed:', infoVisible);
+  }, [infoVisible]);
+
+  const handleAvatarPress = () => {
+    console.log('Avatar pressed, current infoVisible:', infoVisible);
+    setInfoVisible(true);
+    console.log('Set infoVisible to true');
   };
 
   // Ajoute un mapping id => ref pour chaque message
@@ -357,15 +440,18 @@ const WorkspaceChat: React.FC = () => {
         }
         copy.push({
           type: "message",
+          id: msg.id,
           text: msg.content,
           time,
           isSender: msg.senderId === userId,
-          avatar: msg.senderId === userId ? "" : avatarUrl,
+          avatar: msg.senderId === userId ? '' : workspaceAvatar,
+          parentId: msg.parentId,
+          attachments: msg.attachments,
         });
         return copy;
       });
     },
-    [selectedChannel, userId, avatarUrl]
+    [selectedChannel, userId, workspaceAvatar]
   );
 
   // Abonnement au channel via SignalR
@@ -403,8 +489,13 @@ const WorkspaceChat: React.FC = () => {
               <TouchableOpacity onPress={() => router.back()}>
                 <Ionicons name="arrow-back" size={24} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setMenuVisible(true)}>
-                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+              {/* Avatar button now opens workspace info */}
+              <TouchableOpacity 
+                onPress={handleAvatarPress}
+                activeOpacity={0.7}
+                style={{ padding: 5 }} // Add padding to increase touch target
+              >
+                <Image source={{ uri: workspaceAvatar }} style={styles.avatar} />
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{name}</Text>
@@ -419,6 +510,21 @@ const WorkspaceChat: React.FC = () => {
                 <MaterialIcons name="more-vert" size={22} />
               </TouchableOpacity>
             </View>
+            {/* Workspace info sheet */}
+            <WorkspaceInfoSheet
+              visible={infoVisible}
+              onClose={() => {
+                console.log('Closing info sheet');
+                setInfoVisible(false);
+              }}
+              workspaceName={typeof name === "string" ? name : ""}
+              workspaceId={Number(id)}
+            />
+            {/* DropdownMenu for 3-dot button */}
+            <DropdownMenu
+              visible={menuVisible}
+              onClose={() => setMenuVisible(false)}
+            />
 
             {/* Barre de recherche messages */}
             {showSearch && (
@@ -433,31 +539,134 @@ const WorkspaceChat: React.FC = () => {
                         autoFocus
                         value={searchText}
                         onChangeText={handleSearch}
-                        placeholder="Tapez un mot-clé..."
+                        placeholder="Search messages, channels, users..."
                         style={{ fontSize: 16, padding: 0 }}
                       />
                     </View>
                   </View>
                 </View>
-                {searchLoading && <Text style={{ marginTop: 8, color: '#888' }}>Recherche…</Text>}
-                {!searchLoading && searchResults.length > 0 && (
-                  <View style={{ marginTop: 8, backgroundColor: '#fff', borderRadius: 8 }}>
-                    {searchResults.map((msg, i) => (
-                      <TouchableOpacity
-                        key={msg.id || i}
-                        onPress={() => scrollToMessage(msg.id)}
-                        style={{ padding: 10, borderBottomWidth: i < searchResults.length - 1 ? 1 : 0, borderColor: '#eee' }}
-                      >
-                        <Text numberOfLines={2} style={{ fontSize: 15 }}>{msg.content}</Text>
-                        <Text style={{ fontSize: 12, color: '#888' }}>
-                          {format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr })} à {`${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(msg.sendDate).getMinutes().toString().padStart(2, '0')}`}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                
+                {searchLoading && <Text style={{ marginTop: 8, color: '#888' }}>Searching...</Text>}
+                
+                {!searchLoading && unifiedSearchResults && (
+                  <ScrollView style={{ marginTop: 8 }}>
+                    {/* Users section */}
+                    {unifiedSearchResults.userList.length > 0 && (
+                      <View style={{ marginBottom: 16 }}>
+                        <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Users</Text>
+                        {unifiedSearchResults.userList.map((user) => {
+                          const userAvatar = user.profilePictureId 
+                            ? `http://192.168.1.161:5263/api/Attachment/${user.profilePictureId}`
+                            : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || 'User')}`;
+                          
+                          return (
+                            <View
+                              key={user.id}
+                              style={{ 
+                                backgroundColor: '#fff',
+                                padding: 12,
+                                borderRadius: 8,
+                                marginBottom: 8,
+                                flexDirection: 'row',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <Image 
+                                source={{ uri: userAvatar }}
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 20,
+                                  marginRight: 12
+                                }}
+                              />
+                              <View>
+                                <Text style={{ fontWeight: '500' }}>
+                                  {user.firstName} {user.lastName}
+                                </Text>
+                                <Text style={{ fontSize: 12, color: '#888' }}>
+                                  {user.statusLocalized}
+                                </Text>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {/* Messages section - existing code */}
+                    {unifiedSearchResults.messageList.length > 0 && (
+                      <View style={{ marginBottom: 16 }}>
+                        <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Messages</Text>
+                        {unifiedSearchResults.messageList.map((msg) => {
+                          const channel = channels.find(c => c.id === msg.channelId);
+                          return (
+                            <TouchableOpacity
+                              key={msg.id}
+                              onPress={() => handleSearchResultPress(msg.channelId, msg.id)}
+                              style={{ 
+                                backgroundColor: '#fff',
+                                padding: 12,
+                                borderRadius: 8,
+                                marginBottom: 8 
+                              }}
+                            >
+                              <Text numberOfLines={2}>{msg.content}</Text>
+                              <View style={{ 
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginTop: 4
+                              }}>
+                                <Text style={{ fontSize: 12, color: '#888' }}>
+                                  by {msg.senderApplicationUserUsername}
+                                </Text>
+                                <Text style={{ 
+                                  fontSize: 12, 
+                                  color: '#6B8AFD',
+                                  fontWeight: '500'
+                                }}>
+                                  #{channel?.name || 'unknown'}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {/* Channels section - existing code */}
+                    {unifiedSearchResults.channelList.length > 0 && (
+                      <View style={{ marginBottom: 16 }}>
+                        <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Channels</Text>
+                        {unifiedSearchResults.channelList.map((channel) => (
+                          <TouchableOpacity
+                            key={channel.id}
+                            onPress={() => handleSearchResultPress(channel.id)}
+                            style={{ 
+                              backgroundColor: '#fff',
+                              padding: 12,
+                              borderRadius: 8,
+                              marginBottom: 8 
+                            }}
+                          >
+                            <Text style={{ fontWeight: '500' }}>#{channel.name}</Text>
+                            <Text style={{ fontSize: 12, color: '#888' }}>
+                              {channel.visibilityLocalized}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </ScrollView>
                 )}
-                {!searchLoading && searchText && searchResults.length === 0 && (
-                  <Text style={{ marginTop: 8, color: '#888' }}>Aucun résultat</Text>
+
+                {!searchLoading && (!unifiedSearchResults || 
+                  (unifiedSearchResults.messageList.length === 0 && 
+                   unifiedSearchResults.channelList.length === 0 &&
+                   unifiedSearchResults.userList.length === 0)) && 
+                   searchText && (
+                  <Text style={{ marginTop: 8, color: '#888' }}>No results found</Text>
                 )}
               </View>
             )}
@@ -481,7 +690,6 @@ const WorkspaceChat: React.FC = () => {
                       </View>
                     );
                   } else {
-                    // Crée un ref pour chaque message par id
                     let ref = undefined;
                     if ((msg as any).id) {
                       if (!messageRefs.current[(msg as any).id]) {
@@ -502,23 +710,11 @@ const WorkspaceChat: React.FC = () => {
               onSend={handleSend}
               onPickImage={pickImage}
               replyTo={replyTo}
-              onCancelReply={() => setReplyTo(null)}
               editing={editing}
-              onSaveEdit={() => {}} // à implémenter si édition
+              onCancelReply={() => setReplyTo(null)}
+              onSaveEdit={() => {}}
               onCancelEdit={() => setEditing(null)}
             />
-            <DropdownMenu
-              visible={menuVisible}
-              onClose={() => setMenuVisible(false)}
-              onViewInfo={() => {
-                setMenuVisible(false);
-                setInfoVisible(true);
-              }}
-            />
-            <WorkspaceInfoSheet
-              visible={infoVisible}
-              onClose={() => setInfoVisible(false)}
-              workspaceName={name as string} />
           </View>
         </KeyboardAvoidingView>
       </PanGestureHandler>
@@ -526,34 +722,67 @@ const WorkspaceChat: React.FC = () => {
   );
 };
 
+export default WorkspaceChat;
+
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  safeArea: { flex: 1, backgroundColor: "#fff" },
-  container: { flex: 1, backgroundColor: "#fff" },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+  },
+  flex: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    paddingBottom: 16,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
+    paddingTop: 16,
+    paddingBottom: 8,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#eeeeee",
   },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginHorizontal: 10 },
-  name: { fontWeight: "bold", fontSize: 16 },
-  channelName: { fontSize: 13, color: "#4F8CFF" },
-  chat: { flex: 1 },
-  loadingText: { color: "#888", marginTop: 30, alignSelf: "center" },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#333333",
+  },
+  channelName: {
+    fontSize: 14,
+    color: "#666666",
+  },
+  chat: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  loadingText: {
+    textAlign: "center",
+    padding: 16,
+    color: "#888888",
+  },
   separatorContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 10,
-    justifyContent: "center",
+    marginVertical: 8,
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#eeeeee",
   },
   separatorText: {
-    marginHorizontal: 10,
-    fontSize: 12,
-    color: "#888",
+    paddingHorizontal: 8,
+    fontSize: 13,
+    color: "#888888",
   },
-  line: { flex: 1, height: 1, backgroundColor: "#444", opacity: 0.5 },
 });
-
-export default WorkspaceChat;

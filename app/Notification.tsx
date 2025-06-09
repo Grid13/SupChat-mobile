@@ -37,7 +37,7 @@ const Notification: React.FC = () => {
     const fetchNotifications = async () => {
       setLoading(true);
       try {
-        const res = await fetch('http://192.168.1.10:5263/api/Notification', {
+        const res = await fetch('http://192.168.1.161:5263/api/Notification', {
           headers: {
             Accept: 'text/plain',
             Authorization: `Bearer ${token}`,

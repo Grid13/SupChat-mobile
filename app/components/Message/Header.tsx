@@ -10,6 +10,9 @@ import {
 import { useRouter } from "expo-router";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import MenuIcon from "react-native-vector-icons/MaterialCommunityIcons";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store/store";
+import { useProfileImage } from '../../hooks/useProfileImage';
 
 interface HeaderProps {
   name: string;
@@ -18,8 +21,9 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ name, avatar, onSearchPress }) => {
-  console.log('Header: received onSearchPress', typeof onSearchPress);
   const router = useRouter();
+  const token = useSelector((state: RootState) => state.auth.token);
+  const avatarUri = useProfileImage(avatar, token || "") || avatar || "https://ui-avatars.com/api/?name=User";
 
   const handleSearch = () => {
     console.log('Header: onSearchPress is', typeof onSearchPress);
@@ -41,7 +45,7 @@ const Header: React.FC<HeaderProps> = ({ name, avatar, onSearchPress }) => {
         <Icon name="arrow-back" size={24} color="#007AFF" />
       </TouchableOpacity>
 
-      <Image source={{ uri: avatar }} style={styles.avatar} />
+      <Image source={{ uri: avatarUri }} style={styles.avatar} />
       <Text style={styles.name}>{name}</Text>
 
       <View style={styles.rightIcons}>

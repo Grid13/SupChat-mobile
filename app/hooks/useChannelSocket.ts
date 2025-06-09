@@ -64,7 +64,7 @@ const useChannelSocket = ({
         content
       );
       const res = await fetch(
-        `http://192.168.1.10:5263/api/Message/PostForChannel`,
+        `http://192.168.1.161:5263/api/Message/PostForChannel`,
         {
           method: "POST",
           headers: {

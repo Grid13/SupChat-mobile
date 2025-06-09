@@ -93,7 +93,7 @@ const ChatScreen: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch('http://192.168.1.10:5263/api/Account/Me', {
+        const r = await fetch('http://192.168.1.161:5263/api/Account/Me', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const d = await r.json();
@@ -109,7 +109,7 @@ const ChatScreen: React.FC = () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://192.168.1.10:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
+        `http://192.168.1.161:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
         {
           headers: {
             Accept: 'text/plain',
@@ -233,7 +233,7 @@ const ChatScreen: React.FC = () => {
   const deleteMessage = async (msgId: number) => {
     try {
       const res = await fetch(
-        `http://192.168.1.10:5263/api/Message/${msgId}`,
+        `http://192.168.1.161:5263/api/Message/${msgId}`,
         {
           method: 'DELETE',
           headers: {
@@ -262,7 +262,7 @@ const ChatScreen: React.FC = () => {
     const msgId = editing.id;
     try {
       const res = await fetch(
-        `http://192.168.1.10:5263/api/Message/${msgId}`,
+        `http://192.168.1.161:5263/api/Message/${msgId}`,
         {
           method: 'PATCH',
           headers: {
@@ -311,7 +311,7 @@ const ChatScreen: React.FC = () => {
       }
 
       const res = await fetch(
-        'http://192.168.1.10:5263/api/Message/PostForUser',
+        'http://192.168.1.161:5263/api/Message/PostForUser',
         {
           method: 'POST',
           headers: {
@@ -401,7 +401,7 @@ const ChatScreen: React.FC = () => {
 
     try {
       const up = await fetch(
-        `http://192.168.1.10:5263/api/Attachment?attachmentType=ProfilePicture`,
+        `http://192.168.1.161:5263/api/Attachment?attachmentType=ProfilePicture`,
         {
           method: 'POST',
           headers:
@@ -425,7 +425,7 @@ const ChatScreen: React.FC = () => {
     if (replyTo) body.parentId = replyTo.id;
     try {
       const res = await fetch(
-        'http://192.168.1.10:5263/api/Message/PostForUser',
+        'http://192.168.1.161:5263/api/Message/PostForUser',
         {
           method: 'POST',
           headers: {
@@ -477,7 +477,7 @@ const ChatScreen: React.FC = () => {
     setSearchLoading(true);
     try {
       const res = await fetch(
-        `http://192.168.1.10:5263/api/Message/SearchInUser?userId=${otherUserId}&query=${encodeURIComponent(text)}`,
+        `http://192.168.1.161:5263/api/Message/SearchInUser?userId=${otherUserId}&query=${encodeURIComponent(text)}`,
         {
           headers: {
             Accept: 'application/json',

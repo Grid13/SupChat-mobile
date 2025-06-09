@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,108 +10,119 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store/store';
+import { useProfileImage } from '../hooks/useProfileImage';
 
 const screenHeight = Dimensions.get('window').height;
 
 interface Props {
-    visible: boolean;
-    onClose: () => void;
-    workspaceName: string;
-  }
-  
-  
+  visible: boolean;
+  onClose: () => void;
+  workspaceName: string;
+  workspaceId?: number; // Accept workspaceId as optional for compatibility
+}
 
-const WorkspaceInfoSheet: React.FC<Props> = ({ visible, onClose, workspaceName }) => {
+const WorkspaceInfoSheet: React.FC<Props> = ({ visible, onClose, workspaceName, workspaceId }) => {
   const translateY = React.useRef(new Animated.Value(screenHeight)).current;
+  const [isVisible, setIsVisible] = useState(visible);
+  const token = useSelector((state: RootState) => state.auth.token);
 
-  React.useEffect(() => {
-    if (visible) {
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(translateY, {
-        toValue: screenHeight,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
+  // Update internal visibility state when prop changes
+  useEffect(() => {
+    console.log('WorkspaceInfoSheet visibility prop changed:', visible);
+    setIsVisible(visible);
   }, [visible]);
 
+  useEffect(() => {
+    console.log('Animation triggered. isVisible:', isVisible);
+    if (isVisible) {
+      translateY.setValue(screenHeight);
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11
+      }).start(() => console.log('Open animation completed'));
+    } else {
+      Animated.spring(translateY, {
+        toValue: screenHeight,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11
+      }).start(() => console.log('Close animation completed'));
+    }
+  }, [isVisible]);
+
+  const members = Array.from({ length: 5 }).map((_, idx) => ({
+    name: `Member ${idx + 1}`,
+    avatar: `https://randomuser.me/api/portraits/men/${idx * 10}.jpg`,
+  }));
+
+  // Use local state for visibility
   return (
-    <Modal visible={visible} transparent animationType="none">
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
-      <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-        <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{workspaceName}</Text>
+    <Modal 
+      visible={isVisible}
+      transparent
+      statusBarTranslucent
+      animationType="fade"
+    >
+      <View style={styles.overlay}>
+        <TouchableOpacity 
+          style={{ flex: 1 }}
+          activeOpacity={1} 
+          onPress={() => {
+            console.log('Overlay pressed, calling onClose');
+            onClose();
+          }}
+        />
+        <Animated.View 
+          style={[
+            styles.sheet,
+            { transform: [{ translateY }] }
+          ]}
+          onStartShouldSetResponder={() => true}
+          onTouchEnd={e => e.stopPropagation()}
+        >
+          <ScrollView contentContainerStyle={styles.content}>
+            <Text style={styles.title}>{workspaceName}</Text>
 
+            {/* Members */}
+            <Section title="Members" count={5}>
+              <View style={styles.membersContainer}>
+                {members.map((user, idx) => {
+                  const safeToken = token || '';
+                  const avatarUri = useProfileImage(user.avatar, safeToken) || user.avatar || "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.name || "User");
+                  return (
+                    <View key={idx} style={styles.member}>
+                      <View style={styles.avatarContainer}>
+                        <Image source={{ uri: avatarUri }} style={styles.memberAvatar} />
+                        <View style={styles.onlineDot} />
+                      </View>
+                      <Text style={styles.memberName}>{user.name}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </Section>
 
-          {/* Photos & Videos */}
-          <Section title="Photos & Videos" count={24}>
-            <ScrollView horizontal>
-              {[1, 2, 3, 4].map((i) => (
-                <Image
-                  key={i}
-                  style={styles.photo}
-                  source={{ uri: `https://placeimg.com/140/100/tech?${i}` }}
-                />
-              ))}
-            </ScrollView>
-          </Section>
-
-          {/* Members */}
-          <Section title="Members" count={5}>
-            <View style={styles.membersContainer}>
-              {[
-                { name: 'Maria Santa', avatar: 'https://randomuser.me/api/portraits/women/10.jpg' },
-                { name: 'Jbj', avatar: 'https://randomuser.me/api/portraits/women/20.jpg' },
-                { name: 'Med', avatar: 'https://randomuser.me/api/portraits/men/30.jpg' },
-                { name: 'Gros Bzeur', avatar: 'https://randomuser.me/api/portraits/men/40.jpg' },
-                { name: 'Patron', avatar: 'https://randomuser.me/api/portraits/men/50.jpg' },
-              ].map((user, idx) => (
-                <View key={idx} style={styles.member}>
-                  <View style={styles.avatarContainer}>
-                    <Image source={{ uri: user.avatar }} style={styles.memberAvatar} />
-                    <View style={styles.onlineDot} />
-                  </View>
-                  <Text style={styles.memberName}>{user.name}</Text>
+            {/* Shared */}
+            <Section title="Shared" count={24}>
+              <View style={styles.sharedItem}>
+                <Image source={{ uri: "https://img.icons8.com/ios-filled/50/document--v1.png" }} style={styles.sharedIcon} />
+                <Text style={styles.sharedText}>backFunction.txt</Text>
+              </View>
+              <View style={styles.sharedItem}>
+                <Image source={{ uri: "https://img.icons8.com/ios-filled/50/ms-word.png" }} style={styles.sharedIcon} />
+                <View>
+                  <Text style={styles.sharedText}>Sprint Debrief</Text>
+                  <Text style={styles.sharedSub}>https://docs.google.com/document/</Text>
                 </View>
-              ))}
-            </View>
-          </Section>
-
-          {/* Shared */}
-          <Section title="Shared" count={24}>
-            <View style={styles.sharedItem}>
-              <Image source={{ uri: "https://img.icons8.com/ios-filled/50/document--v1.png" }} style={styles.sharedIcon} />
-              <Text style={styles.sharedText}>backFunction.txt</Text>
-            </View>
-            <View style={styles.sharedItem}>
-              <Image source={{ uri: "https://img.icons8.com/ios-filled/50/ms-word.png" }} style={styles.sharedIcon} />
-              <View>
-                <Text style={styles.sharedText}>Sprint Debrief</Text>
-                <Text style={styles.sharedSub}>https://docs.google.com/document/</Text>
               </View>
-            </View>
-          </Section>
-
-          {/* Applications */}
-          <Section title="Applications" count={3}>
-            {[
-              { name: 'Google Drive', icon: 'https://img.icons8.com/color/48/google-drive--v2.png' },
-              { name: 'GitHub', icon: 'https://img.icons8.com/ios-glyphs/30/github.png' },
-              { name: 'Microsoft Teams', icon: 'https://img.icons8.com/color/48/microsoft-teams.png' },
-            ].map((app, idx) => (
-              <View key={idx} style={styles.sharedItem}>
-                <Image source={{ uri: app.icon }} style={styles.sharedIcon} />
-                <Text style={styles.sharedText}>{app.name}</Text>
-              </View>
-            ))}
-          </Section>
-        </ScrollView>
-      </Animated.View>
+            </Section>
+          </ScrollView>
+        </Animated.View>
+      </View>
     </Modal>
   );
 };

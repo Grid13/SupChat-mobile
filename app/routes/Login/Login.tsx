@@ -7,7 +7,7 @@ const LoginScreen = () => {
     const [password, setPassword] = useState("");
     const [checked, setChecked] = useState(false);
 
-    // axios.post(`http://192.168.1.10:5263/connect/token`).then((response) => {
+    // axios.post(`http://192.168.1.161:5263/connect/token`).then((response) => {
     //     console.log(response.data);
     // });
 

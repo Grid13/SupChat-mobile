@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
@@ -14,6 +15,7 @@ import { useRouter } from "expo-router";
 import { useSelector } from "react-redux";
 import { RootState } from "./store/store";
 import CreateWorkspaceModal from "./components/CreateWorkspaceModal";
+import { useProfileImage } from "./hooks/useProfileImage";
 
 type WorkspaceItem = {
   id: string;
@@ -31,10 +33,66 @@ const WorkspaceList: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchText, setSearchText] = useState("");
 
+  // Helper to get workspace avatar (with hook for protected images)
+  const WorkspaceAvatar = ({
+    profilePictureId,
+    name,
+  }: {
+    profilePictureId?: string;
+    name: string;
+  }) => {
+    const imageUrl = profilePictureId
+      ? `http://192.168.1.161:5263/api/Attachment/${profilePictureId}`
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
+    // Fix: ensure token is always a string
+    const token = useSelector((state: RootState) => state.auth.token) || "";
+    const avatarBase64 = useProfileImage(
+      profilePictureId ? imageUrl : undefined,
+      token
+    );
+    return (
+      <View style={styles.badge}>
+        <Text style={{ display: "none" }}>{name}</Text>
+        <Text style={{ display: "none" }}>{profilePictureId}</Text>
+        <Text style={{ display: "none" }}>{imageUrl}</Text>
+        {profilePictureId && avatarBase64 ? (
+          <View
+            style={{
+              width: 45,
+              height: 45,
+              borderRadius: 10,
+              overflow: "hidden",
+            }}
+          >
+            <Image
+              source={{ uri: avatarBase64 }}
+              style={{ width: 45, height: 45, borderRadius: 10 }}
+            />
+          </View>
+        ) : (
+          <View
+            style={{
+              width: 45,
+              height: 45,
+              borderRadius: 10,
+              backgroundColor: "#6B8AFD",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={styles.badgeText}>
+              {name?.slice(0, 2).toUpperCase() || "WS"}
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const fetchWorkspaces = async () => {
     try {
       const response = await fetch(
-        "http://192.168.1.10:5263/api/Workspace/Joined",
+        "http://192.168.1.161:5263/api/Workspace/Joined",
         {
           headers: {
             Accept: "text/plain",
@@ -53,6 +111,7 @@ const WorkspaceList: React.FC = () => {
           subtitle: ws.description || "No description",
           color: "#6B8AFD",
           initials: ws.name?.slice(0, 2).toUpperCase() || "WS",
+          profilePictureId: ws.profilePictureId, // Add this property
         }));
         setWorkspaces(transformed);
       } else {
@@ -72,7 +131,7 @@ const WorkspaceList: React.FC = () => {
     ws.title.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const renderItem = ({ item }: { item: WorkspaceItem }) => (
+  const renderItem = ({ item }: { item: WorkspaceItem & { profilePictureId?: string } }) => (
     <TouchableOpacity
       style={styles.itemContainer}
       onPress={() =>
@@ -81,16 +140,15 @@ const WorkspaceList: React.FC = () => {
           params: {
             id: item.id,
             name: item.title,
-            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-              item.title
-            )}`,
+            avatar: item.profilePictureId
+              ? `http://192.168.1.161:5263/api/Attachment/${item.profilePictureId}`
+              : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}`,
           },
         })
       }
     >
-      <View style={[styles.badge, { backgroundColor: item.color }]}>
-        <Text style={styles.badgeText}>{item.initials}</Text>
-      </View>
+      {/* Use WorkspaceAvatar */}
+      <WorkspaceAvatar profilePictureId={item.profilePictureId} name={item.title} />
       <View style={styles.itemTextContainer}>
         <Text style={styles.itemTitle}>{item.title}</Text>
         <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
@@ -108,6 +166,7 @@ const WorkspaceList: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
+          {/* Optionally, show a generic workspace icon here */}
           <View style={styles.avatar}>
             <Text style={{ color: "#fff", fontWeight: "bold" }}>WS</Text>
           </View>

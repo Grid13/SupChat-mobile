@@ -77,7 +77,7 @@ const useChatMessages = (
     async (receiverId: number, content: string): Promise<ChatMessageDto> => {
       // Même logique qu’auparavant : on appelle l’API REST pour poster le message
       const res = await fetch(
-        `http://192.168.1.10:5263/api/Message/PostForUser`,
+        `http://192.168.1.161:5263/api/Message/PostForUser`,
         {
           method: "POST",
           headers: {

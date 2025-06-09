@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -34,7 +34,7 @@ const ChatList: React.FC = () => {
   const fetchUsers = async () => {
     if (!token) return;
     try {
-      const res = await fetch("http://192.168.1.10:5263/api/User/Mp", {
+      const res = await fetch("http://192.168.1.161:5263/api/User/Mp", {
         headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
       });
       const text = await res.text();
@@ -52,7 +52,7 @@ const ChatList: React.FC = () => {
     if (!token) return;
     try {
       const res = await fetch(
-        "http://192.168.1.10:5263/api/User?pageNumber=1&pageSize=50",
+        "http://192.168.1.161:5263/api/User?pageNumber=1&pageSize=50",
         { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error(`Status ${res.status}`);
@@ -69,7 +69,7 @@ const ChatList: React.FC = () => {
   const fetchCurrentUser = async () => {
     if (!token) return;
     try {
-      const res = await fetch("http://192.168.1.10:5263/api/Account/Me", {
+      const res = await fetch("http://192.168.1.161:5263/api/Account/Me", {
         headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
@@ -118,30 +118,37 @@ const ChatList: React.FC = () => {
     router.push({ pathname: "/ChatScreen", params: { userId: user.id, name: user.firstName, avatar: user.image } });
   };
 
-  const renderChatItem = ({ item }: { item: any }) => (
-    <TouchableOpacity onPress={() => handlePress(item)}>
-      <View style={styles.messageRow}>
-        <Image source={{ uri: item.image || "https://randomuser.me/api/portraits/lego/1.jpg" }} style={styles.avatar} />
-        {item.status === "Online" && <View style={styles.onlineDot} />}
-        <View style={styles.messageContent}>
-          <Text style={styles.name}>{item.firstName}</Text>
-          <Text style={styles.preview}>{item.statusLocalized}</Text>
+  const renderChatItem = ({ item }: { item: any }) => {
+    const avatarUri = item.image || "https://ui-avatars.com/api/?name=" + encodeURIComponent(item.firstName || "User");
+    return (
+      <TouchableOpacity onPress={() => handlePress(item)}>
+        <View style={styles.messageRow}>
+          <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          {item.status === "Online" && <View style={styles.onlineDot} />}
+          <View style={styles.messageContent}>
+            <Text style={styles.name}>{item.firstName}</Text>
+            <Text style={styles.preview}>{item.statusLocalized}</Text>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
-  const renderNewUserItem = ({ item }: { item: any }) => (
-    <TouchableOpacity onPress={() => { handlePress(item); setNewMessageVisible(false); }}>
-      <View style={styles.messageRow}>
-        <Image source={{ uri: item.image || "https://randomuser.me/api/portraits/lego/2.jpg" }} style={styles.avatar} />
-        <View style={styles.messageContent}>
-          <Text style={styles.name}>{item.firstName}</Text>
-          <Text style={styles.preview}>{item.statusLocalized || item.status}</Text>
+  const renderNewUserItem = ({ item }: { item: any }) => {
+    const avatarUri = item.image || "https://ui-avatars.com/api/?name=" + encodeURIComponent(item.firstName || "User");
+    return (
+      <TouchableOpacity onPress={() => { handlePress(item); setNewMessageVisible(false); }}>
+        <View style={styles.messageRow}>
+          <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          {item.status === "Online" && <View style={styles.onlineDot} />}
+          <View style={styles.messageContent}>
+            <Text style={styles.name}>{item.firstName}</Text>
+            <Text style={styles.preview}>{item.statusLocalized}</Text>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>

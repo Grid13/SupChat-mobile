@@ -6,11 +6,11 @@ interface MessageBubbleProps {
   text: string;
   time: string;
   isSender: boolean;
-  avatar?: string;
+  avatar?: string; // optional, direct avatar prop
   onLongPress?: () => void;
   parentId?: number | null;
   parentText?: string | null;
-  attachments?: string[]; // URLs d’images
+  attachments?: string[];
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -31,6 +31,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         isSender ? styles.senderContainer : styles.receiverContainer,
       ]}
     >
+      {!isSender && avatar && (
+        <Image source={{ uri: avatar }} style={styles.avatar} />
+      )}
       <View
         style={[
           styles.bubbleContainer,
@@ -62,7 +65,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             </Text>
           )}
 
-          {/* → NOUVEAU : affichage des images reçues */}
           {attachments && attachments.length > 0 && (
             <View style={styles.attachmentsContainer}>
               {attachments.map((uri, idx) => (
@@ -88,7 +90,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </Text>
         </View>
       </View>
-
       {isSender && avatar && (
         <Image source={{ uri: avatar }} style={styles.avatar} />
       )}
@@ -97,11 +98,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'flex-end', marginVertical: 5 },
+  container: {
+    flexDirection: 'row',
+    alignItems: 'flex-start', // Change from center to flex-start
+    marginVertical: 4,
+    maxWidth: '80%',
+  },
   senderContainer: { justifyContent: 'flex-end', alignSelf: 'flex-end' },
   receiverContainer: { justifyContent: 'flex-start', alignSelf: 'flex-start' },
 
-  avatar: { width: 30, height: 30, borderRadius: 15, marginHorizontal: 5 },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+    marginTop: 4, // Add small top margin to align with message
+  },
 
   bubbleContainer: { flexDirection: 'column', alignItems: 'flex-end' },
   senderBubbleContainer: { alignItems: 'flex-end' },
@@ -151,7 +163,6 @@ const styles = StyleSheet.create({
   senderTime: { marginRight: 10 },
   receiverTime: { marginLeft: 10 },
 
-  // → NOUVEAU : style du conteneur des images
   attachmentsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',

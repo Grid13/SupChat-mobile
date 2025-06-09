@@ -15,6 +15,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "./store/store";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useProfileImage } from "./hooks/useProfileImage";
 
 type Workspace = {
   id: number;
@@ -35,6 +36,7 @@ export default function WorkspaceSettings() {
     visibility: "Public",
   });
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [profilePictureId, setProfilePictureId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingDelete, setLoadingDelete] = useState(false);
 
@@ -42,7 +44,7 @@ export default function WorkspaceSettings() {
     (async () => {
       try {
         const res = await fetch(
-          `http://192.168.1.10:5263/api/Workspace/${id}`,
+          `http://192.168.1.161:5263/api/Workspace/${id}`,
           {
             headers: {
               Accept: "application/json",
@@ -58,7 +60,10 @@ export default function WorkspaceSettings() {
           description: data.description,
           visibility: data.visibility,
         });
-        if (data.profilePictureUrl) {
+        if (data.profilePictureId) {
+          setProfilePictureId(data.profilePictureId);
+          setImageUri(`http://192.168.1.161:5263/api/Attachment/${data.profilePictureId}`);
+        } else if (data.profilePictureUrl) {
           setImageUri(data.profilePictureUrl);
         }
       } catch (err: any) {
@@ -66,6 +71,9 @@ export default function WorkspaceSettings() {
       }
     })();
   }, [id, token]);
+
+  // Use the custom hook for protected images
+  const avatarBase64 = useProfileImage(imageUri || undefined, token || '');
 
   const pickImage = async () => {
     try {
@@ -75,39 +83,99 @@ export default function WorkspaceSettings() {
         aspect: [1, 1],
         quality: 0.8,
       });
-      if (!result.cancelled) {
-        setImageUri(result.uri);
+      console.log("ImagePicker result:", result);
+      console.log("Workspace id:", id); // Log the workspace id
+      if (!result.canceled && result.assets && result.assets[0]?.uri) {
+        setLoading(true);
+        const uri = result.assets[0].uri;
+        const filename = uri.split('/').pop() || 'workspace.jpg';
+        const formData = new FormData();
+        formData.append('file', {
+          uri,
+          name: filename,
+          type: 'image/jpeg',
+        } as any);
+        // Use "Workspace" as the attachmentType for upload
+        const uploadUrl = 'http://192.168.1.161:5263/api/Attachment?attachmentType=ProfilePicture';
+        console.log("Uploading image to Attachment endpoint...", uploadUrl);
+        const res = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            Accept: 'text/plain',
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+        console.log("Upload response status:", res.status);
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.log("Upload failed:", errorText);
+          Alert.alert("Erreur upload", errorText);
+          throw new Error('Upload failed');
+        }
+        const data = await res.json();
+        console.log("Attachment upload response data:", data);
+        if (data.id) {
+          // PATCH workspace profile picture using the new endpoint
+          const patchUrl = `http://192.168.1.161:5263/api/Workspace/${id}/ProfilePicture`;
+          console.log("Patching workspace profile picture:", patchUrl, "with attachmentId:", data.id);
+          const patchRes = await fetch(
+            patchUrl,
+            {
+              method: "PATCH",
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                attachmentId: data.id,
+              }),
+            }
+          );
+          console.log("PATCH response status:", patchRes.status);
+          if (!patchRes.ok) {
+            const patchError = await patchRes.text();
+            console.log("PATCH failed:", patchError);
+            throw new Error('Failed to update workspace image');
+          }
+          setProfilePictureId(data.id);
+          setImageUri(`http://192.168.1.161:5263/api/Attachment/${data.id}`);
+          Alert.alert('Succès', 'Image du workspace mise à jour !');
+        } else {
+          console.log("No id returned from attachment upload.");
+        }
+      } else {
+        console.log("ImagePicker canceled or no asset URI.");
       }
     } catch (err: any) {
-      Alert.alert("Erreur", "Impossible de sélectionner l'image");
+      console.log("Erreur dans pickImage:", err);
+      Alert.alert("Erreur", "Impossible de sélectionner ou mettre à jour l'image");
+    } finally {
+      setLoading(false);
     }
   };
 
   const save = async () => {
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("name", workspace.name);
-      formData.append("description", workspace.description);
-      formData.append("visibility", workspace.visibility);
-      if (imageUri && imageUri.startsWith("file://")) {
-        const filename = imageUri.split('/').pop() || 'image.jpg';
-        formData.append('logo', {
-          uri: imageUri,
-          name: filename,
-          type: 'image/jpeg',
-        } as any);
-      }
-
+      // PATCH with JSON body (not FormData)
+      const body: any = {
+        name: workspace.name,
+        description: workspace.description,
+        visibility: workspace.visibility,
+      };
+      if (profilePictureId) body.profilePictureId = profilePictureId;
       const res = await fetch(
-        `http://192.168.1.10:5263/api/Workspace/${id}`,
+        `http://192.168.1.161:5263/api/Workspace/${id}`,
         {
           method: "PATCH",
           headers: {
             Accept: "application/json",
             Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
-          body: formData,
+          body: JSON.stringify(body),
         }
       );
       if (!res.ok) {
@@ -138,7 +206,7 @@ export default function WorkspaceSettings() {
     setLoadingDelete(true);
     try {
       const res = await fetch(
-        `http://192.168.1.10:5263/api/Workspace/${id}`,
+        `http://192.168.1.161:5263/api/Workspace/${id}`,
         {
           method: "DELETE",
           headers: {
@@ -157,6 +225,9 @@ export default function WorkspaceSettings() {
     }
   };
 
+  // For avatarUri, use useProfileImage for protected images
+  const avatarUri = avatarBase64 || imageUri || "https://ui-avatars.com/api/?name=" + encodeURIComponent(workspace.name || "Workspace");
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FC" }}>
       <View style={styles.header}>
@@ -167,9 +238,9 @@ export default function WorkspaceSettings() {
       </View>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.logoContainer}>
-          <TouchableOpacity onPress={pickImage} style={styles.logoWrapper}>
-            {imageUri ? (
-              <Image source={{ uri: imageUri }} style={styles.logo} />
+          <TouchableOpacity onPress={pickImage} style={styles.logoWrapper} disabled={loading}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.logo} />
             ) : (
               <View style={[styles.logo, styles.logoPlaceholder]} />
             )}
