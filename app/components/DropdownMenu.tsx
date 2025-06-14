@@ -27,7 +27,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({ visible, onClose, onViewInf
 
   
 
-  console.log(`Using IP Address: +ipAddress+`);
+  
   console.log('[DropdownMenu] workspaceId:', workspaceId);
 
   const leaveWorkspace = async () => {
