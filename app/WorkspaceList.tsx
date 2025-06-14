@@ -47,7 +47,7 @@ const WorkspaceList: React.FC = () => {
     name: string;
   }) => {
     const imageUrl = profilePictureId
-      ? `http://`+ipAddress+`:5263/api/Attachment/${profilePictureId}`
+      ? `http://${ipAddress}:5263/api/Attachment/${profilePictureId}`
       : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
     // Fix: ensure token is always a string
     const token = useSelector((state: RootState) => state.auth.token) || "";
@@ -97,7 +97,7 @@ const WorkspaceList: React.FC = () => {
   const fetchWorkspaces = async () => {
     try {
       const response = await fetch(
-        "http://"+ipAddress+":5263/api/Workspace/Joined",
+        `http://${ipAddress}:5263/api/Workspace/Joined`,
         {
           headers: {
             Accept: "text/plain",
@@ -146,7 +146,7 @@ const WorkspaceList: React.FC = () => {
             id: item.id,
             name: item.title,
             avatar: item.profilePictureId
-              ? `http://`+ipAddress+`:5263/api/Attachment/${item.profilePictureId}`
+              ? `http://${ipAddress}:5263/api/Attachment/${item.profilePictureId}`
               : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}`,
           },
         })

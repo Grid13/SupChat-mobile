@@ -32,7 +32,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({ visible, onClose, onViewInf
 
   const leaveWorkspace = async () => {
     try {
-      const res = await fetch(`http://`+ipAddress+`:5263/api/Workspace/${workspaceId}/Leave`, {
+      const res = await fetch(`http://${ipAddress}:5263/api/Workspace/${workspaceId}/Leave`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,

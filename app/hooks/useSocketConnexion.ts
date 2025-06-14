@@ -28,7 +28,7 @@ export const createChatConnection = (
       : HttpTransportType.LongPolling;
 
   const connection = new HubConnectionBuilder()
-    .withUrl("http://"+ipAddress+":5263/chatHub", {
+    .withUrl(`http://${ipAddress}:5263/chatHub`, {
       accessTokenFactory: () => token,
       transport,
     })

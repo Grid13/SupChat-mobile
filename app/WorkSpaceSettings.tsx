@@ -109,7 +109,7 @@ export default function WorkspaceSettings() {
     (async () => {
       try {
         const res = await fetch(
-          `http://`+ipAddress+`:5263/api/Workspace/${id}`,
+          `http://${ipAddress}:5263/api/Workspace/${id}`,
           {
             headers: {
               Accept: "application/json",
@@ -127,7 +127,7 @@ export default function WorkspaceSettings() {
         });
         if (data.profilePictureId) {
           setProfilePictureId(data.profilePictureId);
-          setImageUri(`http://`+ipAddress+`:5263/api/Attachment/${data.profilePictureId}`);
+          setImageUri(`http://${ipAddress}:5263/api/Attachment/${data.profilePictureId}`);
         } else if (data.profilePictureUrl) {
           setImageUri(data.profilePictureUrl);
         }
@@ -183,7 +183,7 @@ export default function WorkspaceSettings() {
         console.log("Attachment upload response data:", data);
         if (data.id) {
           // PATCH workspace profile picture using the new endpoint
-          const patchUrl = `http://`+ipAddress+`:5263/api/Workspace/${id}/ProfilePicture`;
+          const patchUrl = `http://${ipAddress}:5263/api/Workspace/${id}/ProfilePicture`;
           console.log("Patching workspace profile picture:", patchUrl, "with attachmentId:", data.id);
           const patchRes = await fetch(
             patchUrl,
@@ -207,7 +207,7 @@ export default function WorkspaceSettings() {
             throw new Error('Failed to update workspace image');
           }
           setProfilePictureId(data.id);
-          setImageUri(`http://`+ipAddress+`:5263/api/Attachment/${data.id}`);
+          setImageUri(`http://${ipAddress}:5263/api/Attachment/${data.id}`);
           Alert.alert('Succès', 'Image du workspace mise à jour !');
         } else {
           console.log("No id returned from attachment upload.");
@@ -234,7 +234,7 @@ export default function WorkspaceSettings() {
       };
       if (profilePictureId) body.profilePictureId = profilePictureId;
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Workspace/${id}`,
+        `http://${ipAddress}:5263/api/Workspace/${id}`,
         {
           method: "PATCH",
           headers: {
@@ -273,7 +273,7 @@ export default function WorkspaceSettings() {
     setLoadingDelete(true);
     try {
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Workspace/${id}`,
+        `http://${ipAddress}:5263/api/Workspace/${id}`,
         {
           method: "DELETE",
           headers: {
@@ -300,7 +300,7 @@ export default function WorkspaceSettings() {
     console.log('Fetching roles for workspaceId:', id); // Log workspace ID
     (async () => {
       try {
-        const res = await fetch(`http://`+ipAddress+`:5263/api/Workspace/${id}/Roles`, {
+        const res = await fetch(`http://${ipAddress}:5263/api/Workspace/${id}/Roles`, {
           headers: {
             Accept: "application/json",
             Authorization: `Bearer ${token}`,
@@ -320,7 +320,7 @@ export default function WorkspaceSettings() {
 
   const addRole = async () => {
     try {
-      const res = await fetch(`http://`+ipAddress+`:5263/api/Workspace/${id}/Roles`, {
+      const res = await fetch(`http://${ipAddress}:5263/api/Workspace/${id}/Roles`, {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -367,7 +367,7 @@ export default function WorkspaceSettings() {
   const fetchRoleMembers = async (roleId: number) => {
     try {
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Workspace/${workspace.id}/Roles/${roleId}/Members`,
+        `http://${ipAddress}:5263/api/Workspace/${workspace.id}/Roles/${roleId}/Members`,
         {
           headers: {
             Accept: "application/json",
@@ -387,7 +387,7 @@ export default function WorkspaceSettings() {
   const fetchNonMembers = async (roleId: number) => {
     try {
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Workspace/${workspace.id}/Roles/${roleId}/NonMembers`,
+        `http://${ipAddress}:5263/api/Workspace/${workspace.id}/Roles/${roleId}/NonMembers`,
         {
           headers: {
             Accept: "application/json",
@@ -409,7 +409,7 @@ export default function WorkspaceSettings() {
 
     try {
       const requestBody = { members };
-      const requestUrl = `http://`+ipAddress+`:5263/api/Workspace/${workspace.id}/Roles/${roleId}/Members`;
+      const requestUrl = `http://${ipAddress}:5263/api/Workspace/${workspace.id}/Roles/${roleId}/Members`;
 
       const res = await fetch(requestUrl, {
         method: "POST",
@@ -449,7 +449,7 @@ export default function WorkspaceSettings() {
   const removeRoleFromMember = async (memberId: number) => {
     if (!selectedRoleId) return;
     try {
-      const requestUrl = `http://`+ipAddress+`:5263/api/Workspace/${workspace.id}/Roles/${selectedRoleId}/Members/${memberId}`;
+      const requestUrl = `http://${ipAddress}:5263/api/Workspace/${workspace.id}/Roles/${selectedRoleId}/Members/${memberId}`;
 
       console.log("Request URL:", requestUrl);
 
@@ -501,7 +501,7 @@ export default function WorkspaceSettings() {
 
     try {
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Workspace/${workspace.id}/Roles/${roleToEdit.id}`,
+        `http://${ipAddress}:5263/api/Workspace/${workspace.id}/Roles/${roleToEdit.id}`,
         {
           method: "PATCH",
           headers: {
@@ -536,7 +536,7 @@ export default function WorkspaceSettings() {
   const fetchRolePermissions = async (workspaceId: number, roleId: number) => {
     try {
         console.log(`Fetching permissions for workspaceId: ${workspaceId}, roleId: ${roleId}`); // Log workspaceId and roleId
-        const response = await axios.get(`http://`+ipAddress+`:5263/api/Workspace/${workspaceId}/Roles/${roleId}/Permissions`, {
+        const response = await axios.get(`http://${ipAddress}:5263/api/Workspace/${workspaceId}/Roles/${roleId}/Permissions`, {
             headers: {
                 Authorization: `Bearer ${token}`,
                 accept: 'text/plain',

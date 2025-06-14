@@ -23,8 +23,7 @@ import { useRouter } from "expo-router";
 import dotenv from 'dotenv';
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
-
-console.log(`Using IP Address: +ipAddress+`);
+console.log("IP Address:", ipAddress);
 
 type Props = {
   visible: boolean;
@@ -82,7 +81,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
   const fetchAvailableWorkspaces = async () => {
     setLoadingJoinList(true);
     try {
-      const response = await fetch(`+ipAddress+/api/Workspace/Available`, {
+      const response = await fetch(`http://${ipAddress}:5263/api/Workspace/Available`, {
         headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
       });
       const text = await response.text();
@@ -113,7 +112,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
             try {
               setLoadingJoinList(true);
               const res = await fetch(
-                `+ipAddress+/api/Workspace/${workspace.id}/Join`,
+                `http://${ipAddress}:5263/api/Workspace/${workspace.id}/Join`,
                 { method: "POST", headers: { Accept: "text/plain", Authorization: `Bearer ${token}` } }
               );
               if (!res.ok) throw new Error("Erreur lors de la demande de rejoindre.");
@@ -164,7 +163,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
       form.append('file', { uri, name: filename, type } as any);
 
       const res = await fetch(
-        `+ipAddress+/api/Attachment?attachmentType=ProfilePicture`,
+        `http://${ipAddress}:5263/api/Attachment?attachmentType=ProfilePicture`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -190,8 +189,9 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
       setLoading(true);
       const body: any = { name: name.trim(), visibility };
       if (profilePictureId) body.profilePictureId = profilePictureId;
+      console.log("IP Address:", ipAddress);
 
-      const response = await fetch(`+ipAddress+/api/Workspace`, {
+      const response = await fetch(`http://${ipAddress}:5263/api/Workspace`, {
         method: "POST",
         headers: {
           Accept: "text/plain",

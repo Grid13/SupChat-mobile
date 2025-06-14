@@ -35,7 +35,7 @@ const CreateChannelModal: React.FC<Props> = ({ visible, onClose, onCreated, work
     try {
       setLoading(true);
 
-      const response = await fetch(`http://`+ipAddress+`:5263/api/Workspace/${workspaceId}/Channels`, {
+      const response = await fetch(`http://${ipAddress}:5263/api/Workspace/${workspaceId}/Channels`, {
         method: "POST",
         headers: {
           Accept: "text/plain",

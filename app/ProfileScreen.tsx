@@ -43,7 +43,7 @@ const SettingsScreen = () => {
     if (!token) return;
 
     try {
-      const response = await fetch("http://"+ipAddress+":5263/api/Account/Me", {
+      const response = await fetch(`http://${ipAddress}:5263/api/Account/Me`, {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
@@ -58,7 +58,7 @@ const SettingsScreen = () => {
         lastName: json.applicationUser?.lastName || "-",
         image:
           json.applicationUser?.profilePictureId
-            ? `http://`+ipAddress+`:5263/api/Attachment/${json.applicationUser.profilePictureId}`
+            ? `http://${ipAddress}:5263/api/Attachment/${json.applicationUser.profilePictureId}`
             : "https://ui-avatars.com/api/?name=" +
               encodeURIComponent(json.applicationUser?.firstName || "User"),
         status: json.applicationUser?.statusLocalized || "Unknown",
@@ -112,7 +112,7 @@ const SettingsScreen = () => {
       return Alert.alert("Error", "User ID not found");
     }
     try {
-      const response = await fetch(`http://`+ipAddress+`:5263/api/User/${userId}/Password`, {
+      const response = await fetch(`http://${ipAddress}:5263/api/User/${userId}/Password`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -184,11 +184,11 @@ const SettingsScreen = () => {
         if (!res.ok) throw new Error('Upload failed');
         const data = await res.json();
         // Use the fileId to construct the image URL for GET /api/Attachment/{fileId}
-        const imageUrl = `http://`+ipAddress+`:5263/api/Attachment/${data.id}`;
+        const imageUrl = `http://${ipAddress}:5263/api/Attachment/${data.id}`;
         // PATCH to update profile picture for user
         const userId = profile?.applicationUser?.id;
         if (userId && data.id) {
-          const patchRes = await fetch(`http://`+ipAddress+`:5263/api/User/${userId}/ProfilePicture`, {
+          const patchRes = await fetch(`http://${ipAddress}:5263/api/User/${userId}/ProfilePicture`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ const SettingsScreen = () => {
   const fetchOwnedBots = async () => {
     if (!token) return;
     try {
-      const response = await fetch("http://"+ipAddress+":5263/api/Bot/GetOwnedBots", {
+      const response = await fetch(`http://${ipAddress}:5263/api/Bot/GetOwnedBots`, {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
@@ -236,7 +236,7 @@ const SettingsScreen = () => {
   const fetchBotDetails = async (botId: number) => {
     if (!token) return;
     try {
-      const response = await fetch(`http://`+ipAddress+`:5263/api/Bot/${botId}`, {
+      const response = await fetch(`http://${ipAddress}:5263/api/Bot/${botId}`, {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
@@ -265,7 +265,7 @@ const SettingsScreen = () => {
     if (!confirm) return;
 
     try {
-      const response = await fetch(`http://`+ipAddress+`:5263/api/Bot/${botId}`, {
+      const response = await fetch(`http://${ipAddress}:5263/api/Bot/${botId}`, {
         method: "DELETE",
         headers: {
           Accept: "application/json",
@@ -462,7 +462,7 @@ const SettingsScreen = () => {
               if (!confirm) return;
               try {
                 const response = await fetch(
-                  `http://`+ipAddress+`:5263/api/User/${userId}`,
+                  `http://${ipAddress}:5263/api/User/${userId}`,
                   {
                     method: "DELETE",
                     headers: {

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
 /**
  * Hook to fetch a protected profile image as base64 if needed, else returns null.
  * @param imageUrl The image URL (may be protected)

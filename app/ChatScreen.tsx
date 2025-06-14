@@ -121,7 +121,7 @@ const ChatScreen: React.FC = () => {
   const fetchReactions = async (messageId: number): Promise<Array<{ id: number; content: string; messageId: number; senderId: number }>> => {
     console.log(`[ChatScreen] Fetching reactions for message ID: ${messageId}`);
     try {
-      const res = await fetch(`http://`+ipAddress+`:5263/api/Message/${messageId}/Reactions`, {
+      const res = await fetch(`http://${ipAddress}:5263/api/Message/${messageId}/Reactions`, {
         headers: {
           Accept: 'text/plain',
           Authorization: `Bearer ${token}`,
@@ -144,7 +144,7 @@ const ChatScreen: React.FC = () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
+        `http://${ipAddress}:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
         {
           headers:
            {
@@ -278,7 +278,7 @@ const ChatScreen: React.FC = () => {
     console.log(`[ChatScreen] Deleting message ID: ${msgId}`);
     try {
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Message/${msgId}`,
+        `http://${ipAddress}:5263/api/Message/${msgId}`,
         {
           method: 'DELETE',
           headers: {
@@ -310,7 +310,7 @@ const ChatScreen: React.FC = () => {
     console.log(`[ChatScreen] Saving edited message ID: ${msgId} with new text: ${newText}`);
     try {
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Message/${msgId}`,
+        `http://${ipAddress}:5263/api/Message/${msgId}`,
         {
           method: 'PATCH',
           headers: {
@@ -447,7 +447,7 @@ const ChatScreen: React.FC = () => {
 
     try {
       const up = await fetch(
-        `http://`+ipAddress+`:5263/api/Attachment?attachmentType=ProfilePicture`,
+        `http://${ipAddress}:5263/api/Attachment?attachmentType=ProfilePicture`,
         {
           method: 'POST',
           headers:
@@ -524,7 +524,7 @@ const ChatScreen: React.FC = () => {
     console.log(`[ChatScreen] Searching messages for text: ${text} in user ID: ${otherUserId}`);
     try {
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Message/SearchInUser?userId=${otherUserId}&search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`,
+        `http://${ipAddress}:5263/api/Message/SearchInUser?userId=${otherUserId}&search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`,
         {
           headers: {
             Accept: 'application/json',
@@ -580,7 +580,7 @@ const ChatScreen: React.FC = () => {
       try {
         const sendReaction = async (messageId: number, emoji: string) => {
           console.log('[ChatScreen] Sending reaction:', { messageId, emoji });
-          const url = `http://`+ipAddress+`:5263/api/Message/${messageId}/Reactions`;
+          const url = `http://${ipAddress}:5263/api/Message/${messageId}/Reactions`;
           const body = JSON.stringify({ content: emoji });
           const res = await fetch(url, {
             method: 'POST',

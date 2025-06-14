@@ -45,7 +45,7 @@ const Register = () => {
         password: password,
       };
 
-      const response = await fetch(`http://`+ipAddress+`:5263/api/Account/register`, {
+      const response = await fetch(`http://${ipAddress}:5263/api/Account/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -141,7 +141,7 @@ const WorkspaceChat: React.FC = () => {
     : `https://ui-avatars.com/api/?name=${encodeURIComponent(name as string || 'Workspace')}`;
   const tokenStr = token || "";
   const avatarBase64 = useProfileImage(
-    workspaceAvatarUrl.startsWith("http://"+ipAddress+":5263/api/Attachment/")
+    workspaceAvatarUrl.startsWith(`http://${ipAddress}:5263/api/Attachment/`)
       ? workspaceAvatarUrl
       : undefined,
     tokenStr
@@ -153,7 +153,7 @@ const WorkspaceChat: React.FC = () => {
     setChannelsLoading(true);
     try {
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Workspace/${id}/Channels`,
+        `http://${ipAddress}:5263/api/Workspace/${id}/Channels`,
         { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } }
       );
       const txt = await res.text();
@@ -179,7 +179,7 @@ const WorkspaceChat: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("http://"+ipAddress+":5263/api/Account/Me", {
+        const res = await fetch(`http://${ipAddress}:5263/api/Account/Me`, {
           headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -202,7 +202,7 @@ const WorkspaceChat: React.FC = () => {
     (async () => {
       setMessagesLoading(true);
       try {
-        const url = `http://`+ipAddress+`:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
+        const url = `http://${ipAddress}:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
         const res = await fetch(url, {
           headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
         });
@@ -223,7 +223,7 @@ const WorkspaceChat: React.FC = () => {
           arr.map(async (msg) => {
             let reactions = [];
             try {
-              const rRes = await fetch(`http://`+ipAddress+`:5263/api/Message/${msg.id}/Reactions`, {
+              const rRes = await fetch(`http://${ipAddress}:5263/api/Message/${msg.id}/Reactions`, {
                 headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
               });
               if (rRes.ok) {
@@ -302,7 +302,7 @@ const WorkspaceChat: React.FC = () => {
 
     try {
       const up = await fetch(
-        `http://`+ipAddress+`:5263/api/Attachment?attachmentType=ChannelMessage`,
+        `http://${ipAddress}:5263/api/Attachment?attachmentType=ChannelMessage`,
         {
           method: "POST",
           headers: {
@@ -331,7 +331,7 @@ const WorkspaceChat: React.FC = () => {
     if (replyTo) body.parentId = replyTo.id;
     try {
       const res = await fetch(
-        "http://"+ipAddress+":5263/api/Message/PostInChannel",
+        `http://${ipAddress}:5263/api/Message/PostInChannel`,
         {
           method: "POST",
           headers: {
@@ -364,7 +364,7 @@ const WorkspaceChat: React.FC = () => {
     if (replyTo) body.parentId = replyTo.id;
     try {
       const res = await fetch(
-        "http://"+ipAddress+":5263/api/Message/PostInChannel",
+        `http://${ipAddress}:5263/api/Message/PostInChannel`,
         {
           method: "POST",
           headers: {
@@ -395,7 +395,7 @@ const WorkspaceChat: React.FC = () => {
     }
     setSearchLoading(true);
     try {
-      const url = `http://`+ipAddress+`:5263/api/Workspace/${id}/UnifiedSearch?search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`;
+      const url = `http://${ipAddress}:5263/api/Workspace/${id}/UnifiedSearch?search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`;
       const res = await fetch(url, {
         headers: {
           Accept: "application/json",
@@ -523,7 +523,7 @@ const WorkspaceChat: React.FC = () => {
   const deleteMessage = async (msgId: number) => {
     try {
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Message/${msgId}`,
+        `http://${ipAddress}:5263/api/Message/${msgId}`,
         {
           method: 'DELETE',
           headers: {
@@ -561,7 +561,7 @@ const WorkspaceChat: React.FC = () => {
   const sendReaction = async (messageId: number, emoji: string) => {
     console.log('[WorkspaceChat] Sending reaction:', { messageId, emoji });
     try {
-      const url = `http://`+ipAddress+`:5263/api/Message/${messageId}/Reactions`;
+      const url = `http://${ipAddress}:5263/api/Message/${messageId}/Reactions`;
       console.log('[WorkspaceChat] Request URL:', url);
       console.log('[WorkspaceChat] Request headers:', {
         'Content-Type': 'application/json',
@@ -731,7 +731,7 @@ const WorkspaceChat: React.FC = () => {
                         <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Users</Text>
                         {unifiedSearchResults.userList.map((user) => {
                           const userAvatar = user.profilePictureId 
-                            ? `http://`+ipAddress+`:5263/api/Attachment/${user.profilePictureId}`
+                            ? `http://${ipAddress}:5263/api/Attachment/${user.profilePictureId}`
                             : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || 'User')}`;
                           
                           return (

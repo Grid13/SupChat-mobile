@@ -2,6 +2,8 @@
 import { useEffect, useCallback } from "react";
 import { HubConnection } from "@microsoft/signalr";
 
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
 export interface ChannelMessageDto {
   id: number;
   content: string;
@@ -82,7 +84,7 @@ const useChannelSocket = ({
         content
       );
       const res = await fetch(
-        `http://`+ipAddress+`:5263/api/Message/PostForChannel`,
+        `http://${ipAddress}:5263/api/Message/PostForChannel`,
         {
           method: "POST",
           headers: {

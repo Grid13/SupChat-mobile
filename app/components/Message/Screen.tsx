@@ -42,7 +42,7 @@ const Screen: React.FC = () => {
     if (!searchText.trim() || !token || !userId) return;
     setSearchLoading(true);
     try {
-      const response = await fetch(`http://`+ipAddress+`:5263/api/Message/SearchInUser?userId=${userId}&search=${encodeURIComponent(searchText)}&pageNumber=1&pageSize=10`, {
+      const response = await fetch(`http://${ipAddress}:5263/api/Message/SearchInUser?userId=${userId}&search=${encodeURIComponent(searchText)}&pageNumber=1&pageSize=10`, {
         headers: {
           Accept: 'text/plain',
           Authorization: `Bearer ${token}`,

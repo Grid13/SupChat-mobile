@@ -43,7 +43,7 @@ const Login = () => {
       formBody.append("password", password);
       formBody.append("grant_type", "password");
       console.log("IP Address:", ipAddress);
-      const response = await fetch("http://"+ipAddress+":5263/api/Authorization/login", {
+      const response = await fetch(`http://${ipAddress}:5263/api/Authorization/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -75,7 +75,7 @@ const Login = () => {
   const handleGitHubRedirectLogin = async () => {
     try {
       const redirectUri = Linking.createURL("ChatList");
-      const loginUrl = `http://`+ipAddress+`:5263/api/Authorization/login/github?returnUrl=${encodeURIComponent(
+      const loginUrl = `http://${ipAddress}:5263/api/Authorization/login/github?returnUrl=${encodeURIComponent(
         redirectUri
       )}`;
 
