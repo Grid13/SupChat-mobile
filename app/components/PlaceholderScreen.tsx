@@ -6,7 +6,7 @@ const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 
 
-console.log(`Using IP Address: +ipAddress+`);
+
 
 const PlaceholderScreen: React.FC = () => {
   return (

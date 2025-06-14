@@ -233,4 +233,4 @@ const styles = StyleSheet.create({
 });
 
 
-console.log(`Using IP Address: +ipAddress+`);
+
