@@ -23,7 +23,7 @@ import dotenv from 'dotenv';
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 
-console.log(`Using IP Address: +ipAddress+`);
+
 
 type Workspace = {
   id: number;

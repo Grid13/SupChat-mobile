@@ -30,7 +30,14 @@ import dotenv from 'dotenv';
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 
-console.log(`Using IP Address: +ipAddress+`);
+export interface LocalChatMessageDto { // Renamed to LocalChatMessageDto
+  id: number;
+  content: string;
+  sendDate: string;
+  senderId: number;
+  parentId?: number;
+  messageAttachments?: Array<{ attachmentId: string }>; // Added messageAttachments property
+}
 
 type MessageItem =
   | { type: 'separator'; label: string }
@@ -106,7 +113,7 @@ const ChatScreen: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch('http://'+ipAddress+':5263/api/Account/Me', {
+        const r = await fetch(`http://${ipAddress}:5263/api/Account/Me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const d = await r.json();
@@ -119,7 +126,6 @@ const ChatScreen: React.FC = () => {
 
   // Function to fetch reactions for a message
   const fetchReactions = async (messageId: number): Promise<Array<{ id: number; content: string; messageId: number; senderId: number }>> => {
-    console.log(`[ChatScreen] Fetching reactions for message ID: ${messageId}`);
     try {
       const res = await fetch(`http://${ipAddress}:5263/api/Message/${messageId}/Reactions`, {
         headers: {
@@ -127,10 +133,8 @@ const ChatScreen: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      console.log(`[ChatScreen] Response status for reactions: ${res.status}`);
       if (!res.ok) throw new Error(`Failed to fetch reactions (${res.status})`);
       const text = await res.text();
-      console.log(`[ChatScreen] Reactions response body: ${text}`);
       return JSON.parse(text || '[]');
     } catch (e: any) {
       console.error('[ChatScreen] Error fetching reactions:', e);
@@ -138,26 +142,21 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  // 2) Charger l'historique des messages
   const fetchMessages = useCallback(async () => {
-    console.log(`[ChatScreen] Fetching messages for user ID: ${otherUserId}`);
     setLoading(true);
     try {
       const res = await fetch(
         `http://${ipAddress}:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
         {
-          headers:
-           {
+          headers: {
             Accept: 'text/plain',
             Authorization: `Bearer ${token}`,
           },
         }
       );
-      console.log(`[ChatScreen] Response status for messages: ${res.status}`);
       const text = await res.text();
-      console.log(`[ChatScreen] Messages response body: ${text}`);
       const json = JSON.parse(text || '[]');
-      const arr: ChatMessageDto[] = Array.isArray(json.value)
+      const arr: LocalChatMessageDto[] = Array.isArray(json.value)
         ? json.value
         : (json.valueOrDefault || json);
 
@@ -177,7 +176,23 @@ const ChatScreen: React.FC = () => {
         }
         currLabel = label;
 
-        const reactions = await fetchReactions(m.id); // Fetch reactions for the message
+        const reactions = await fetchReactions(m.id);
+
+        const attachments = await Promise.all(
+          (m.messageAttachments || []).map(async (attachment: { attachmentId: string }) => {
+            const attachmentRes = await fetch(`http://${ipAddress}:5263/api/Attachment/${attachment.attachmentId}`, {
+              headers: {
+                Accept: '*/*',
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            if (attachmentRes.ok) {
+              return attachmentRes.url;
+            }
+            return null;
+          })
+        );
+
         dayMsgs.push({
           type: 'message',
           id: m.id,
@@ -186,7 +201,8 @@ const ChatScreen: React.FC = () => {
           isSender: m.senderId === myUserId,
           senderId: m.senderId,
           parentId: m.parentId,
-          reactions, // Include reactions
+          reactions,
+          attachments: attachments.filter((url): url is string => url !== null),
         });
       }
       if (dayMsgs.length && currLabel) {
@@ -195,7 +211,6 @@ const ChatScreen: React.FC = () => {
       }
       setMessages(grouped);
     } catch (e: any) {
-      console.error('[ChatScreen] Error fetching messages:', e);
       Alert.alert('Erreur', e.message);
     } finally {
       setLoading(false);
@@ -275,7 +290,6 @@ const ChatScreen: React.FC = () => {
 
   // 6) Supprimer un message (même code qu’avant)
   const deleteMessage = async (msgId: number) => {
-    console.log(`[ChatScreen] Deleting message ID: ${msgId}`);
     try {
       const res = await fetch(
         `http://${ipAddress}:5263/api/Message/${msgId}`,
@@ -286,7 +300,6 @@ const ChatScreen: React.FC = () => {
           },
         }
       );
-      console.log(`[ChatScreen] Response status for delete: ${res.status}`);
       if (res.ok) {
         setMessages((prev) =>
           prev.filter((m) => !(m.type === 'message' && m.id === msgId))
@@ -307,7 +320,6 @@ const ChatScreen: React.FC = () => {
   const saveEditedMessage = async (newText: string) => {
     if (!editing) return;
     const msgId = editing.id;
-    console.log(`[ChatScreen] Saving edited message ID: ${msgId} with new text: ${newText}`);
     try {
       const res = await fetch(
         `http://${ipAddress}:5263/api/Message/${msgId}`,
@@ -320,7 +332,6 @@ const ChatScreen: React.FC = () => {
           body: JSON.stringify({ content: newText }),
         }
       );
-      console.log(`[ChatScreen] Response status for edit: ${res.status}`);
       if (res.ok) {
         setMessages((prev) =>
           prev.map((m) => {
@@ -347,7 +358,6 @@ const ChatScreen: React.FC = () => {
   const handleSend = async (text: string, parentId: number | null) => {
     if (editing) return;
 
-    console.log(`[ChatScreen] Sending message: ${text} with parent ID: ${parentId}`);
     try {
       const body: {
         content: string;
@@ -372,9 +382,7 @@ const ChatScreen: React.FC = () => {
           body: JSON.stringify(body),
         }
       );
-      console.log(`[ChatScreen] Response status for send: ${res.status}`);
       const returned = await res.json();
-      console.log(`[ChatScreen] Sent message response body: ${JSON.stringify(returned)}`);
       if (res.ok) {
         setMessages((prev) => [
           ...prev,
@@ -521,7 +529,6 @@ const ChatScreen: React.FC = () => {
       return;
     }
     setSearchLoading(true);
-    console.log(`[ChatScreen] Searching messages for text: ${text} in user ID: ${otherUserId}`);
     try {
       const res = await fetch(
         `http://${ipAddress}:5263/api/Message/SearchInUser?userId=${otherUserId}&search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`,
@@ -532,7 +539,6 @@ const ChatScreen: React.FC = () => {
           },
         }
       );
-      console.log(`[ChatScreen] Response status for search: ${res.status}`);
       const body = await res.text();
       if (!res.ok) {
         setSearchResults([]);
@@ -546,7 +552,7 @@ const ChatScreen: React.FC = () => {
             sendDate: msg.sendDate,
             senderId: msg.senderId,
             parentId: msg.parentId,
-            attachments: msg.messageAttachments?.map((att: { attachment: { name: string } }) => att.attachment?.name) || [], // Define type for att
+            attachments: msg.messageAttachments?.map((att: { attachment: { name: string } }) => att.attachment?.name) || [],
           }))
         : [];
       setSearchResults(formattedResults);
@@ -574,12 +580,9 @@ const ChatScreen: React.FC = () => {
 
   // Update the reaction handling
   const onAddReactionFromDrawer = (emoji: any) => {
-    console.log('[ChatScreen] onAddReactionFromDrawer called with emoji:', emoji);
     if (drawerMessage) {
-      console.log('[ChatScreen] drawerMessage:', drawerMessage);
       try {
         const sendReaction = async (messageId: number, emoji: string) => {
-          console.log('[ChatScreen] Sending reaction:', { messageId, emoji });
           const url = `http://${ipAddress}:5263/api/Message/${messageId}/Reactions`;
           const body = JSON.stringify({ content: emoji });
           const res = await fetch(url, {
@@ -591,24 +594,18 @@ const ChatScreen: React.FC = () => {
             body,
           });
           const responseText = await res.text();
-          console.log('[ChatScreen] Response status:', res.status);
-          console.log('[ChatScreen] Response body:', responseText);
           if (!res.ok) throw new Error(`Failed to add reaction (${res.status})`);
           return JSON.parse(responseText);
         };
 
         sendReaction(drawerMessage.id, emoji.emoji).then(reactionData => {
-          console.log('[ChatScreen] Reaction sent successfully:', reactionData);
           setMessages(prev => {
-            console.log('[ChatScreen] Updating messages with new reaction');
             return prev.map(m => {
               if (m.type === 'message' && m.id === drawerMessage.id) {
-                console.log('[ChatScreen] Adding reaction to message:', m.id);
                 const updatedMessage = {
                   ...m,
                   reactions: [...(m.reactions || []), reactionData],
                 };
-                console.log('[ChatScreen] Updated message:', updatedMessage);
                 return updatedMessage;
               }
               return m;
@@ -621,8 +618,6 @@ const ChatScreen: React.FC = () => {
       }
       setDrawerVisible(false);
       setShowEmojiPicker(false);
-    } else {
-      console.log('[ChatScreen] No drawerMessage found');
     }
   };
 

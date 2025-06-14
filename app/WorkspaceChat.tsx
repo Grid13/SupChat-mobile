@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, createRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -29,26 +29,23 @@ import useChannelSocket from "./hooks/useChannelSocket";
 import { useSocket } from "./hooks/SocketProvider";
 import * as ImagePicker from "expo-image-picker";
 import { useProfileImage } from "./hooks/useProfileImage";
-import EmojiPicker from 'rn-emoji-keyboard';
-import dotenv from 'dotenv';
+import MessageActionsModal from './components/Message/MessageActionsModal';
+import EmojiPicker from "rn-emoji-keyboard";
+import dotenv from "dotenv";
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
-
-// MessageItem type for WorkspaceChat
-// Copied from ChatScreen.tsx and adapted for channel messages
-
 type MessageItem =
-  | { type: 'separator'; label: string }
+  | { type: "separator"; label: string }
   | {
-      type: 'message';
-      id?: number;
+      type: "message";
+      id: number;
       text: string;
       time: string;
       isSender: boolean;
       senderId: number;
       parentId?: number;
-      parentText?: string | null;
+      parentText?: string | null; // Ajout de la propriété parentText
       attachments?: string[];
       reactions?: Array<{
         id: number;
@@ -58,48 +55,13 @@ type MessageItem =
       }>;
     };
 
-// Add these types at the top with other types
-type UnifiedSearchResult = {
-  channelList: Array<{
-    id: number;
-    name: string;
-    visibility: string;
-    visibilityLocalized: string;
-    workspaceId: number;
-  }>;
-  userList: Array<{
-    id: number;
-    firstName: string;
-    lastName: string | null;
-    status: string;
-    statusLocalized: string;
-    profilePictureId?: string;
-  }>;
-  messageList: Array<{
-    id: number;
-    content: string;
-    sendDate: string;
-    senderId: number;
-    senderApplicationUserUsername: string;
-    channelId: number;
-    parentId: number;
-  }>;
-  attachmentList: Array<{
-    id: string;
-    name: string;
-    type: string;
-    typeLocalized: string;
-    ownerId: number;
-  }>;
-};
-
 const WorkspaceChat: React.FC = () => {
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   const { id, name, avatar } = useLocalSearchParams();
   const token = useSelector((state: RootState) => state.auth.token);
-  const { connection } = useSocket();
+  const { connection } = useSocket(); // Use SocketProvider for connection
 
   const [channels, setChannels] = useState<Channel[]>([]);
   const [channelsLoading, setChannelsLoading] = useState(true);
@@ -108,23 +70,14 @@ const WorkspaceChat: React.FC = () => {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [infoVisible, setInfoVisible] = useState(false);
-  const [navDrawerVisible, setNavDrawerVisible] = useState(false); // Rename for navigation drawer
+  const [navDrawerVisible, setNavDrawerVisible] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
-
-  // Pour la réponse à un message
-  const [replyTo, setReplyTo] = useState<{ id: number; text: string } | null>(null);
-
-  // Pour l'édition (optionnel, à adapter si besoin)
-  const [editing, setEditing] = useState<{ id: number; text: string } | null>(null);
-
-  // Recherche
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [unifiedSearchResults, setUnifiedSearchResults] = useState<UnifiedSearchResult | null>(null);
-
-  // States pour le message drawer
+  const [replyTo, setReplyTo] = useState<{ id: number; text: string } | null>(
+    null
+  );
+  const [editing, setEditing] = useState<{ id: number; text: string } | null>(
+    null
+  );
   const [messageDrawerVisible, setMessageDrawerVisible] = useState(false);
   const [drawerMessage, setDrawerMessage] = useState<{
     id: number;
@@ -133,10 +86,13 @@ const WorkspaceChat: React.FC = () => {
   } | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  // Compute workspaceAvatar using profile picture if available, with hook for protected images
-  let workspaceAvatarUrl = typeof avatar === 'string' && avatar
-    ? avatar
-    : `https://ui-avatars.com/api/?name=${encodeURIComponent(name as string || 'Workspace')}`;
+  // Compute workspaceAvatar using profile picture if available
+  let workspaceAvatarUrl =
+    typeof avatar === "string" && avatar
+      ? avatar
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+          name as string || "Workspace"
+        )}`;
   const tokenStr = token || "";
   const avatarBase64 = useProfileImage(
     workspaceAvatarUrl.startsWith(`http://${ipAddress}:5263/api/Attachment/`)
@@ -146,7 +102,7 @@ const WorkspaceChat: React.FC = () => {
   );
   const workspaceAvatar = avatarBase64 || workspaceAvatarUrl;
 
-  // Récupère la liste des canaux du workspace
+  // Fetch channels
   const fetchChannels = useCallback(async () => {
     setChannelsLoading(true);
     try {
@@ -156,7 +112,9 @@ const WorkspaceChat: React.FC = () => {
       );
       const txt = await res.text();
       let json: any = [];
-      try { json = JSON.parse(txt); } catch {}
+      try {
+        json = JSON.parse(txt);
+      } catch {}
       const list: Channel[] = Array.isArray(json)
         ? json
         : Array.isArray(json.value)
@@ -173,110 +131,14 @@ const WorkspaceChat: React.FC = () => {
     }
   }, [id, token, selectedChannel]);
 
-  // Récupère l'ID utilisateur courant
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`http://${ipAddress}:5263/api/Account/Me`, {
-          headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        setUserId(data.applicationUser?.id || null);
-      } catch {
-        setUserId(null);
-      }
-    })();
-  }, [token]);
+    fetchChannels();
+  }, [fetchChannels]);
 
-  // Charge les canaux au montage
-  useEffect(() => { fetchChannels(); }, [fetchChannels]);
+  const handleAvatarPress = () => {
+    setInfoVisible(true);
+  };
 
-  // Récupère les messages pour le canal sélectionné
-  useEffect(() => {
-    if (!selectedChannel || userId === null) {
-      return;
-    }
-    let active = true;
-    (async () => {
-      setMessagesLoading(true);
-      try {
-        const url = `http://${ipAddress}:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
-        const res = await fetch(url, {
-          headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
-        });
-        const txt = await res.text();
-        let json: any = [];
-        try { json = JSON.parse(txt); } catch {}
-        let arr: any[] = Array.isArray(json)
-          ? json
-          : Array.isArray(json.value)
-          ? json.value
-          : Array.isArray(json.valueOrDefault)
-          ? json.valueOrDefault
-          : [];
-        arr = arr.slice().reverse();
-
-        // Fetch reactions for each message
-        const messagesWithAttachments = await Promise.all(
-          arr.map(async (msg) => {
-            const attachments = await Promise.all(
-              (msg.messageAttachments || []).map(async (attachment: { attachmentId: string }) => {
-                const attachmentRes = await fetch(`http://${ipAddress}:5263/api/Attachment/${attachment.attachmentId}`, {
-                  headers: {
-                    Accept: '*/*',
-                    Authorization: `Bearer ${token}`,
-                  },
-                });
-                if (attachmentRes.ok) {
-                  return attachmentRes.url; // Use the direct URL for the attachment
-                }
-                return null;
-              })
-            );
-
-            const reactions = await fetchReactions(msg.id);
-
-            return {
-              type: 'message' as const,
-              id: msg.id,
-              text: msg.content,
-              time: `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(msg.sendDate).getMinutes().toString().padStart(2, '0')}`,
-              isSender: msg.senderId === userId,
-              senderId: msg.senderId,
-              parentId: msg.parentId,
-              attachments: attachments.filter((url): url is string => url !== null),
-              reactions: reactions || [],
-            };
-          })
-        );
-
-        // Formatage date/heure et groupement par jour
-        const formatted: MessageItem[] = [];
-        let currentDay: string | null = null;
-        messagesWithAttachments.forEach(msg => {
-          const day = format(new Date(arr.find(m => m.id === msg.id)?.sendDate), "d MMMM yyyy", { locale: fr });
-          if (day !== currentDay) {
-            formatted.push({ type: "separator", label: day });
-            currentDay = day;
-          }
-          formatted.push(msg);
-        });
-
-        if (active) setMessages(formatted);
-      } catch (err: any) {
-        console.error("Error fetching messages:", err);
-        Alert.alert("Erreur API", err.message || "Impossible de charger les messages");
-      } finally {
-        active && setMessagesLoading(false);
-      }
-    })();
-    return () => { active = false; };
-  }, [selectedChannel, userId, token, workspaceAvatar]);
-
-  // Scroll vers le bas à chaque nouveau message
-  useEffect(() => { scrollViewRef.current?.scrollToEnd({ animated: true }); }, [messages]);
-
-  // Gère le geste pour ouvrir/fermer le drawer
   const onHandlerStateChange = ({ nativeEvent }: any) => {
     if (nativeEvent.state === State.END) {
       if (nativeEvent.translationX > 20) setNavDrawerVisible(true);
@@ -284,7 +146,188 @@ const WorkspaceChat: React.FC = () => {
     }
   };
 
-  // Picker d'image
+  const formatTime = (iso: string) => {
+    const d = new Date(iso);
+    if (!isNaN(d.getTime())) {
+      return `${d.getHours().toString().padStart(2, "0")}h${d
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`;
+    }
+    return "--:--";
+  };
+
+  const formatDay = (iso: string) =>
+    format(new Date(iso), "d MMMM yyyy", { locale: fr });
+
+  // Fetch messages with parent text
+  const fetchMessages = useCallback(async () => {
+  setMessagesLoading(true);
+  try {
+    if (!selectedChannel) {
+      return;
+    }
+
+    const res = await fetch(
+      `http://${ipAddress}:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`,
+      {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const arr: any[] = await res.json();
+
+    const grouped: MessageItem[] = [];
+    let currLabel: string | null = null;
+    let dayMsgs: MessageItem[] = [];
+
+    arr.sort(
+      (a, b) => new Date(a.sendDate).getTime() - new Date(b.sendDate).getTime()
+    );
+
+    for (const m of arr) {
+      const label = formatDay(m.sendDate);
+      if (currLabel && label !== currLabel) {
+        grouped.push({ type: "separator", label: currLabel });
+        grouped.push(...dayMsgs);
+        dayMsgs = [];
+      }
+      currLabel = label;
+
+      let parentText = null;
+      if (m.parentId) {
+        try {
+          const parentRes = await fetch(
+            `http://${ipAddress}:5263/api/Message/${m.parentId}`,
+            {
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+          if (parentRes.ok) {
+            const parentData = await parentRes.json();
+            parentText = parentData.content;
+          }
+        } catch (e) {
+          console.warn(`[ParentFetch] Failed to fetch parent message ${m.parentId}`);
+        }
+      }
+
+      const attachments = m.messageAttachments?.map((att: { attachmentId: string }) => {
+        const url: string = `http://${ipAddress}:5263/api/Attachment/${att.attachmentId}`;
+        return url;
+      }) || [];
+
+      dayMsgs.push({
+        type: "message",
+        id: m.id,
+        text: m.content,
+        time: formatTime(m.sendDate),
+        isSender: m.senderId === userId,
+        senderId: m.senderId,
+        parentId: m.parentId,
+        parentText,
+        attachments: attachments.filter((url: string | null): url is string => url !== null),
+      });
+    }
+
+    if (dayMsgs.length && currLabel) {
+      grouped.push({ type: "separator", label: currLabel });
+      grouped.push(...dayMsgs);
+    }
+
+    setMessages(grouped);
+  } catch (e: any) {
+    Alert.alert("Erreur", e.message);
+  } finally {
+    setMessagesLoading(false);
+  }
+}, [selectedChannel, token, userId]);
+
+  useEffect(() => {
+    if (selectedChannel) fetchMessages();
+  }, [selectedChannel, fetchMessages]);
+
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages]);
+
+  const handleSend = async (text: string) => {
+    if (editing) return;
+
+    try {
+      const body: {
+        content: string;
+        channelId: number;
+        parentId?: number;
+      } = {
+        content: text,
+        channelId: selectedChannel!.id,
+      };
+      if (replyTo) {
+        body.parentId = replyTo.id;
+      }
+
+      const res = await fetch(
+        `http://${ipAddress}:5263/api/Message/PostInChannel`,
+        {
+          method: "POST",
+          headers:
+            {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          body: JSON.stringify(body),
+        }
+      );
+      const returned = await res.json();
+      if (res.ok) {
+        let parentText = null;
+        if (returned.parentId) {
+          const parentRes = await fetch(
+            `http://${ipAddress}:5263/api/Message/${returned.parentId}`,
+            {
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+          if (parentRes.ok) {
+            const parentData = await parentRes.json();
+            parentText = parentData.content;
+          }
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "message",
+            id: returned.id,
+            text: returned.content,
+            time: formatTime(returned.sendDate),
+            isSender: true,
+            senderId: userId!,
+            parentId: returned.parentId,
+            parentText,
+          },
+        ]);
+        setReplyTo(null);
+      } else {
+        Alert.alert("Erreur serveur", `Statut ${res.status}`);
+      }
+    } catch (e: any) {
+      Alert.alert("Erreur envoi", e.message || "Une erreur est survenue.");
+    }
+  };
+
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -298,13 +341,11 @@ const WorkspaceChat: React.FC = () => {
     if (result.canceled) return;
     const uri = result.assets && result.assets[0]?.uri;
     if (!uri) return;
-    const name = uri.split('/').pop()!;
+    const name = uri.split("/").pop()!;
     const match = /\.(\w+)$/.exec(name);
-    const type = match ? `image/${match[1]}` : 'image';
+    const type = match ? `image/${match[1]}` : "image";
     const formData = new FormData();
-    formData.append('file', { uri, name, type } as any);
-
-    console.log('[WorkspaceChat] Uploading image:', { uri, name, type });
+    formData.append("file", { uri, name, type } as any);
 
     try {
       const up = await fetch(
@@ -318,26 +359,16 @@ const WorkspaceChat: React.FC = () => {
           body: formData,
         }
       );
-      const responseText = await up.text();
-      console.log('[WorkspaceChat] Upload response:', { status: up.status, responseText });
-
       if (!up.ok) throw new Error(`Upload failed ${up.status}`);
-      const { id: attachmentId } = JSON.parse(responseText);
+      const { id: attachmentId } = await up.json();
       await sendImageMessage([attachmentId], [uri]);
     } catch (e: any) {
-      console.error('[WorkspaceChat] Upload error:', e);
       Alert.alert("Erreur", e.message);
     }
   };
 
-  // Envoi d'un message avec pièce jointe
   const sendImageMessage = async (attachmentIds: string[], uris: string[]) => {
-    if (!selectedChannel) return;
-    const body: any = {
-      content: "",
-      channelId: selectedChannel.id,
-      attachments: attachmentIds,
-    };
+    const body: any = { content: "", channelId: selectedChannel!.id, attachments: attachmentIds };
     if (replyTo) body.parentId = replyTo.id;
     try {
       const res = await fetch(
@@ -353,17 +384,37 @@ const WorkspaceChat: React.FC = () => {
       );
       if (res.ok) {
         const msg = await res.json();
-        const newMessage: MessageItem = {
-          type: 'message',
-          id: msg.id,
-          text: msg.content,
-          time: `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(msg.sendDate).getMinutes().toString().padStart(2, '0')}`,
-          isSender: true,
-          senderId: userId!,
-          parentId: msg.parentId,
-          attachments: uris,
-        };
-        setMessages((prev) => [...prev, newMessage]);
+        let parentText = null;
+        if (msg.parentId) {
+          const parentRes = await fetch(
+            `http://${ipAddress}:5263/api/Message/${msg.parentId}`,
+            {
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+          if (parentRes.ok) {
+            const parentData = await parentRes.json();
+            parentText = parentData.content;
+          }
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "message",
+            id: msg.id,
+            text: msg.content,
+            time: formatTime(msg.sendDate),
+            isSender: true,
+            senderId: userId!,
+            parentId: msg.parentId,
+            parentText,
+            attachments: uris,
+          },
+        ]);
         setReplyTo(null);
       } else {
         throw new Error(`Status ${res.status}`);
@@ -373,162 +424,11 @@ const WorkspaceChat: React.FC = () => {
     }
   };
 
-  // Envoi d'un message texte (avec support reply)
-  const handleSend = async (text: string) => {
-    if (!selectedChannel) return;
-    if (editing) return; // (optionnel: à adapter si édition)
-    const body: any = {
-      content: text,
-      channelId: selectedChannel.id,
-    };
-    if (replyTo) body.parentId = replyTo.id;
-    try {
-      const res = await fetch(
-        `http://${ipAddress}:5263/api/Message/PostInChannel`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(body),
-        }
-      );
-      if (res.ok) {
-        // Le message sera reçu via SignalR (handleReceiveSocket)
-        setReplyTo(null);
-      } else {
-        Alert.alert("Erreur serveur", `Statut ${res.status}`);
-      }
-    } catch (e: any) {
-      Alert.alert("Erreur envoi", e.message || "Une erreur est survenue.");
-    }
-  };
-
-  // Replace the existing handleSearch with this one
-  const handleSearch = async (text: string) => {
-    setSearchText(text);
-    if (!text.trim()) {
-      setSearchResults([]);
-      setUnifiedSearchResults(null);
-      return;
-    }
-    setSearchLoading(true);
-    try {
-      const url = `http://${ipAddress}:5263/api/Workspace/${id}/UnifiedSearch?search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`;
-      const res = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await res.json();
-      // Filter out current user from userList
-      if (data.userList) {
-        data.userList = data.userList.filter((user: { id: number }) => user.id !== userId);
-      }
-      setUnifiedSearchResults(data);
-    } catch (err) {
-      console.error('Search failed:', err);
-      setUnifiedSearchResults(null);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  // Add this handler
-  const handleSearchResultPress = (channelId: number, messageId?: number) => {
-    const channel = channels.find(c => c.id === channelId);
-    if (channel) {
-      setSelectedChannel(channel);
-      setShowSearch(false);
-      if (messageId) {
-        // Let the UI update first, then scroll
-        setTimeout(() => scrollToMessage(messageId), 300);
-      }
-    }
-  };
-
-  // Add state debug effect
-  useEffect(() => {
-    console.log('infoVisible state changed:', infoVisible);
-  }, [infoVisible]);
-
-  const handleAvatarPress = () => {
-    console.log('Avatar pressed, current infoVisible:', infoVisible);
-    setInfoVisible(true);
-    console.log('Set infoVisible to true');
-  };
-
-  // Ajoute un mapping id => ref pour chaque message
-  const messageRefs = useRef<{ [id: number]: React.RefObject<View | null> }>(
-    {}
-  );
-
-  // Scroll vers le message sélectionné
-  const scrollToMessage = (msgId: number) => {
-    const ref = messageRefs.current[msgId];
-    if (ref && ref.current && scrollViewRef.current) {
-      ref.current.measureLayout(
-        scrollViewRef.current.getInnerViewNode(),
-        (x, y) => {
-          scrollViewRef.current?.scrollTo({ y, animated: true });
-        },
-        () => {}
-      );
-    }
-    setShowSearch(false);
-    setSearchText('');
-    setSearchResults([]);
-  };
-
-  // Ajoute le message reçu via SignalR dans la liste
-  const handleReceiveSocket = useCallback(
-    (msg: any) => {
-      if (!selectedChannel || msg.channelId !== selectedChannel.id) return;
-
-      // Prevent duplicate messages by checking if the message already exists
-      setMessages((prev) => {
-        if (prev.some((m) => m.type === "message" && m.id === msg.id)) {
-          console.log(`[WorkspaceChat] Duplicate message ignored: ${msg.id}`);
-          return prev;
-        }
-
-        const day = format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr });
-        const time = `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(
-          msg.sendDate
-        ).getMinutes().toString().padStart(2, '0')}`;
-
-        const copy = [...prev];
-        if (!copy.find((m) => m.type === "separator" && m.label === day)) {
-          copy.push({ type: "separator", label: day });
-        }
-        copy.push({
-          type: "message",
-          id: msg.id,
-          text: msg.content,
-          time,
-          isSender: msg.senderId === userId,
-          senderId: msg.senderId,
-          parentId: msg.parentId,
-          attachments: msg.messageAttachments?.map((att: any) => att.attachmentId) || [],
-        });
-        return copy;
-      });
-    },
-    [selectedChannel, userId] // Remove workspaceAvatar from dependencies
-  );
-
-  // Abonnement au channel via SignalR
-  useChannelSocket({
-    connection,
-    channelId: selectedChannel?.id ?? 0,
-    onReceive: handleReceiveSocket,
-    token: token || "",
-  });
-
-  // Add drawer handlers
-  const onMessageLongPress = (msgId: number, msgText: string, isSender: boolean) => {
+  const onMessageLongPress = (
+    msgId: number,
+    msgText: string,
+    isSender: boolean
+  ) => {
     setDrawerMessage({ id: msgId, text: msgText, isSender });
     setMessageDrawerVisible(true);
   };
@@ -548,32 +448,6 @@ const WorkspaceChat: React.FC = () => {
     setMessageDrawerVisible(false);
   };
 
-  const deleteMessage = async (msgId: number) => {
-    try {
-      const res = await fetch(
-        `http://${ipAddress}:5263/api/Message/${msgId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (res.ok) {
-        setMessages((prev) =>
-          prev.filter((m) => !(m.type === 'message' && m.id === msgId))
-        );
-      } else {
-        Alert.alert(
-          'Erreur serveur',
-          `Impossible de supprimer (status ${res.status})`
-        );
-      }
-    } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
-    }
-  };
-
   const onDeleteFromDrawer = () => {
     if (drawerMessage && drawerMessage.isSender) {
       deleteMessage(drawerMessage.id);
@@ -585,104 +459,187 @@ const WorkspaceChat: React.FC = () => {
     setMessageDrawerVisible(false);
   };
 
-  // Add reaction handling
-  const sendReaction = async (messageId: number, emoji: string) => {
-    console.log('[WorkspaceChat] Sending reaction:', { messageId, emoji });
+  const deleteMessage = async (msgId: number) => {
     try {
-      const url = `http://${ipAddress}:5263/api/Message/${messageId}/Reactions`;
-      console.log('[WorkspaceChat] Request URL:', url);
-      console.log('[WorkspaceChat] Request headers:', {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      });
-
-      const body = JSON.stringify({ content: emoji });
-      console.log('[WorkspaceChat] Request body:', body);
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body
-      });
-
-      const responseText = await res.text();
-      console.log('[WorkspaceChat] Response status:', res.status);
-      console.log('[WorkspaceChat] Response body:', responseText);
-
-      if (!res.ok) {
-        console.error('[WorkspaceChat] Reaction error:', res.status, responseText);
+      const res = await fetch(
+        `http://${ipAddress}:5263/api/Message/${msgId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (res.ok) {
+        setMessages((prev) =>
+          prev.filter((m) => !(m.type === "message" && m.id === msgId))
+        );
+      } else {
+        Alert.alert(
+          "Erreur serveur",
+          `Impossible de supprimer (status ${res.status})`
+        );
       }
-
-      // Try to parse response and update UI
-      try {
-        const reactionData = JSON.parse(responseText);
-        console.log('[WorkspaceChat] Parsed reaction data:', reactionData);
-        return reactionData;
-      } catch (e) {
-        console.error('[WorkspaceChat] Failed to parse reaction response:', e);
-      }
-
-    } catch (e) {
-      console.error('[WorkspaceChat] sendReaction error:', e);
+    } catch (e: any) {
+      Alert.alert("Erreur", e.message || "Une erreur est survenue.");
     }
   };
 
-  const onAddReactionFromDrawer = (emoji: any) => {
-    console.log('[WorkspaceChat] onAddReactionFromDrawer called with emoji:', emoji);
-    if (drawerMessage) {
-      console.log('[WorkspaceChat] drawerMessage:', drawerMessage);
+  const saveEditedMessage = async (newText: string) => {
+    if (!editing) return;
+    const msgId = editing.id;
+    try {
+      const res = await fetch(
+        `http://${ipAddress}:5263/api/Message/${msgId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ content: newText }),
+        }
+      );
+      if (res.ok) {
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.type === "message" && m.id === msgId) {
+              return { ...m, text: newText };
+            }
+            return m;
+          })
+        );
+        setEditing(null);
+      } else {
+        Alert.alert(
+          "Erreur serveur",
+          `Impossible de modifier (code ${res.status})`
+        );
+      }
+    } catch (e: any) {
+      Alert.alert("Erreur", e.message || "Une erreur est survenue.");
+    }
+  };
+
+  // Fetch user ID
+  useEffect(() => {
+    (async () => {
       try {
-        sendReaction(drawerMessage.id, emoji.emoji).then(reactionData => {
-          console.log('[WorkspaceChat] Reaction sent successfully:', reactionData);
-          setMessages(prev => {
-            console.log('[WorkspaceChat] Updating messages with new reaction');
-            return prev.map(m => {
-              if (m.type === 'message' && m.id === drawerMessage.id) {
-                console.log('[WorkspaceChat] Adding reaction to message:', m.id);
-                const updatedMessage = {
-                  ...m,
-                  reactions: [...(m.reactions || []), reactionData]
-                };
-                console.log('[WorkspaceChat] Updated message:', updatedMessage);
-                return updatedMessage;
-              }
-              return m;
-            });
-          });
+        const res = await fetch(`http://${ipAddress}:5263/api/Account/Me`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
+        const data = await res.json();
+        setUserId(data.applicationUser?.id ?? null);
+      } catch (err) {
+        console.error("Failed to fetch user ID:", err);
+      }
+    })();
+  }, [token]);
+
+  const onAddReactionFromDrawer = async (emoji: any) => {
+    if (drawerMessage) {
+      try {
+        const url = `http://${ipAddress}:5263/api/Message/${drawerMessage.id}/Reactions`;
+        const body = JSON.stringify({ content: emoji.emoji });
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body,
+        });
+        const responseText = await res.text();
+        if (!res.ok) throw new Error(`Failed to add reaction (${res.status})`);
+        const reactionData = JSON.parse(responseText);
+
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.type === "message" && m.id === drawerMessage.id) {
+              return {
+                ...m,
+                reactions: [...(m.reactions || []), reactionData],
+              };
+            }
+            return m;
+          })
+        );
       } catch (e: any) {
-        console.error('[WorkspaceChat] Error in onAddReactionFromDrawer:', e);
-        Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
+        Alert.alert("Erreur", e.message || "Une erreur est survenue.");
       }
       setMessageDrawerVisible(false);
       setShowEmojiPicker(false);
-    } else {
-      console.log('[WorkspaceChat] No drawerMessage found');
     }
   };
 
-  const fetchReactions = async (messageId: number): Promise<Array<{ id: number; content: string; messageId: number; senderId: number }>> => {
-    try {
-      const res = await fetch(`http://${ipAddress}:5263/api/Message/${messageId}/Reactions`, {
-        headers: {
-          Accept: 'text/plain',
-          Authorization: `Bearer ${token}`,
-        },
+  // Ajoute le message reçu via SignalR dans la liste
+  const handleReceiveSocket = useCallback(
+    (msg: any) => {
+      if (!selectedChannel || msg.channelId !== selectedChannel.id) return;
+
+      setMessages((prev) => {
+        if (prev.some((m) => m.type === "message" && m.id === msg.id)) {
+          return prev;
+        }
+
+        const day = format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr });
+        const time = `${new Date(msg.sendDate).getHours().toString().padStart(2, "0")}h${new Date(
+          msg.sendDate
+        ).getMinutes().toString().padStart(2, "0")}`;
+
+        const copy = [...prev];
+        if (!copy.find((m) => m.type === "separator" && m.label === day)) {
+          copy.push({ type: "separator", label: day });
+        }
+        copy.push({
+          type: "message",
+          id: msg.id,
+          text: msg.content,
+          time,
+          isSender: msg.senderId === userId,
+          senderId: msg.senderId,
+          parentId: msg.parentId,
+          attachments: msg.messageAttachments?.map((att: any) => att.attachmentId) || [],
+        });
+        return copy;
       });
-      if (!res.ok) throw new Error(`Failed to fetch reactions (${res.status})`);
-      const text = await res.text();
-      return JSON.parse(text || '[]');
-    } catch (e: any) {
-      console.error('[WorkspaceChat] Error fetching reactions:', e);
-      return [];
-    }
-  };
+    },
+    [selectedChannel, userId]
+  );
+
+  const handleUpdate = useCallback(
+    (updated: any) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.type === "message" && msg.id === updated.id
+            ? { ...msg, text: updated.content }
+            : msg
+        )
+      );
+    },
+    []
+  );
+
+  const handleDelete = useCallback(
+    (id: number) => {
+      setMessages((prev) =>
+        prev.filter((msg) => !(msg.type === "message" && msg.id === id))
+      );
+    },
+    []
+  );
+
+  useChannelSocket({
+    connection,
+    channelId: selectedChannel?.id ?? 0,
+    onReceive: handleReceiveSocket,
+    onUpdate: handleUpdate, // Ensure handleUpdate is used
+    onDelete: handleDelete, // Ensure handleDelete is used
+    token: token || "",
+  });
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top","bottom"]}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <PanGestureHandler onHandlerStateChange={onHandlerStateChange} activeOffsetX={10}>
         <KeyboardAvoidingView
           style={styles.flex}
@@ -693,7 +650,7 @@ const WorkspaceChat: React.FC = () => {
             <WorkspaceDrawer
               visible={navDrawerVisible}
               onClose={() => setNavDrawerVisible(false)}
-              onChannelPress={ch => {
+              onChannelPress={(ch) => {
                 setSelectedChannel(ch);
                 setNavDrawerVisible(false);
               }}
@@ -708,11 +665,10 @@ const WorkspaceChat: React.FC = () => {
               <TouchableOpacity onPress={() => router.back()}>
                 <Ionicons name="arrow-back" size={24} />
               </TouchableOpacity>
-              {/* Avatar button now opens workspace info */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={handleAvatarPress}
                 activeOpacity={0.7}
-                style={{ padding: 5 }} // Add padding to increase touch target
+                style={{ padding: 5 }}
               >
                 <Image source={{ uri: workspaceAvatar }} style={styles.avatar} />
               </TouchableOpacity>
@@ -722,301 +678,79 @@ const WorkspaceChat: React.FC = () => {
                   {selectedChannel?.name || "Choisir un channel"}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setShowSearch(true)}>
-                <Ionicons name="search" size={22} />
-              </TouchableOpacity>
               <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ marginLeft: 10 }}>
                 <MaterialIcons name="more-vert" size={22} />
               </TouchableOpacity>
             </View>
-            {/* Workspace info sheet */}
             <WorkspaceInfoSheet
               visible={infoVisible}
-              onClose={() => {
-                console.log('Closing info sheet');
-                setInfoVisible(false);
-              }}
+              onClose={() => setInfoVisible(false)}
               workspaceName={typeof name === "string" ? name : ""}
               workspaceId={Number(id)}
             />
-            {/* DropdownMenu for 3-dot button */}
             <DropdownMenu
               visible={menuVisible}
               onClose={() => setMenuVisible(false)}
-              workspaceId={Number(id)} // Pass workspaceId here
+              workspaceId={Number(id)}
             />
-
-            {/* Barre de recherche messages */}
-            {showSearch && (
-              <View style={{ flexDirection: 'column', backgroundColor: '#f5f5f5', padding: 8 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <TouchableOpacity onPress={() => setShowSearch(false)} style={{ padding: 8 }}>
-                    <Text style={{ fontSize: 18 }}>✕</Text>
-                  </TouchableOpacity>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
-                      <TextInput
-                        autoFocus
-                        value={searchText}
-                        onChangeText={handleSearch}
-                        placeholder="Search messages, channels, users..."
-                        style={{ fontSize: 16, padding: 0 }}
-                      />
-                    </View>
-                  </View>
-                </View>
-                
-                {searchLoading && <Text style={{ marginTop: 8, color: '#888' }}>Searching...</Text>}
-                
-                {!searchLoading && unifiedSearchResults && (
-                  <ScrollView style={{ marginTop: 8 }}>
-                    {/* Users section */}
-                    {unifiedSearchResults.userList.length > 0 && (
-                      <View style={{ marginBottom: 16 }}>
-                        <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Users</Text>
-                        {unifiedSearchResults.userList.map((user) => {
-                          const userAvatar = user.profilePictureId 
-                            ? `http://${ipAddress}:5263/api/Attachment/${user.profilePictureId}`
-                            : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || 'User')}`;
-                          
-                          return (
-                            <View
-                              key={user.id}
-                              style={{ 
-                                backgroundColor: '#fff',
-                                padding: 12,
-                                borderRadius: 8,
-                                marginBottom: 8,
-                                flexDirection: 'row',
-                                alignItems: 'center'
-                              }}
-                            >
-                              <Image 
-                                source={{ uri: userAvatar }}
-                                style={{
-                                  width: 40,
-                                  height: 40,
-                                  borderRadius: 20,
-                                  marginRight: 12
-                                }}
-                              />
-                              <View>
-                                <Text style={{ fontWeight: '500' }}>
-                                  {user.firstName} {user.lastName}
-                                </Text>
-                                <Text style={{ fontSize: 12, color: '#888' }}>
-                                  {user.statusLocalized}
-                                </Text>
-                              </View>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    )}
-
-                    {/* Messages section - existing code */}
-                    {unifiedSearchResults.messageList.length > 0 && (
-                      <View style={{ marginBottom: 16 }}>
-                        <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Messages</Text>
-                        {unifiedSearchResults.messageList.map((msg) => {
-                          const channel = channels.find(c => c.id === msg.channelId);
-                          return (
-                            <TouchableOpacity
-                              key={msg.id}
-                              onPress={() => handleSearchResultPress(msg.channelId, msg.id)}
-                              style={{ 
-                                backgroundColor: '#fff',
-                                padding: 12,
-                                borderRadius: 8,
-                                marginBottom: 8 
-                              }}
-                            >
-                              <Text numberOfLines={2}>{msg.content}</Text>
-                              <View style={{ 
-                                flexDirection: 'row',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginTop: 4
-                              }}>
-                                <Text style={{ fontSize: 12, color: '#888' }}>
-                                  by {msg.senderApplicationUserUsername}
-                                </Text>
-                                <Text style={{ 
-                                  fontSize: 12, 
-                                  color: '#6B8AFD',
-                                  fontWeight: '500'
-                                }}>
-                                  #{channel?.name || 'unknown'}
-                                </Text>
-                              </View>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    )}
-
-                    {/* Channels section - existing code */}
-                    {unifiedSearchResults.channelList.length > 0 && (
-                      <View style={{ marginBottom: 16 }}>
-                        <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Channels</Text>
-                        {unifiedSearchResults.channelList.map((channel) => (
-                          <TouchableOpacity
-                            key={channel.id}
-                            onPress={() => handleSearchResultPress(channel.id)}
-                            style={{ 
-                              backgroundColor: '#fff',
-                              padding: 12,
-                              borderRadius: 8,
-                              marginBottom: 8 
-                            }}
-                          >
-                            <Text style={{ fontWeight: '500' }}>#{channel.name}</Text>
-                            <Text style={{ fontSize: 12, color: '#888' }}>
-                              {channel.visibilityLocalized}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </ScrollView>
-                )}
-
-                {!searchLoading && (!unifiedSearchResults || 
-                  (unifiedSearchResults.messageList.length === 0 && 
-                   unifiedSearchResults.channelList.length === 0 &&
-                   unifiedSearchResults.userList.length === 0)) && 
-                   searchText && (
-                  <Text style={{ marginTop: 8, color: '#888' }}>No results found</Text>
-                )}
-              </View>
-            )}
-
             <ScrollView
               ref={scrollViewRef}
-              style={styles.chat}
-              contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+              contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
               keyboardShouldPersistTaps="handled"
             >
               {messagesLoading ? (
                 <Text style={styles.loadingText}>Chargement…</Text>
               ) : (
-                messages.map((msg, idx) => {
+                // Deduplicate messages by filtering out entries with duplicate IDs
+                [...new Map(messages.map((msg) => [msg.type === "message" ? msg.id : `${msg.type}-${msg.label}`, msg])).values()].map((msg, i) => {
                   if (msg.type === "separator") {
                     return (
-                      <View key={idx} style={styles.separatorContainer}>
+                      <View key={`separator-${i}`} style={styles.separatorContainer}>
                         <View style={styles.line} />
                         <Text style={styles.separatorText}>{msg.label}</Text>
                         <View style={styles.line} />
                       </View>
                     );
-                  } else {
-                    let ref = undefined;
-                    if ((msg as any).id) {
-                      if (!messageRefs.current[(msg as any).id]) {
-                        messageRefs.current[(msg as any).id] = createRef<View>();
-                      }
-                      ref = messageRefs.current[(msg as any).id];
-                    }
+                  } else if (msg.type === "message") {
                     return (
-                      <View ref={ref} key={(msg as any).id ?? idx}>
-                        <MessageBubble
-                          {...msg}
-                          onAddReaction={(reaction) => {
-                            setMessages((prevMsgs) =>
-                              prevMsgs.map((m) => {
-                                if (m.type === 'message' && m.id === msg.id) {
-                                  // Avoid duplicate reactions
-                                  const reactions = Array.isArray(m.reactions) ? m.reactions : [];
-                                  if (!reactions.find(r => r.id === reaction.id)) {
-                                    return { ...m, reactions: [...reactions, reaction] };
-                                  }
-                                }
-                                return m;
-                              })
-                            );
-                          }}
-                          onLongPress={() => {
-                            if (msg.id !== undefined) { // Add type check
-                              onMessageLongPress(msg.id, msg.text, msg.isSender)
-                            }
-                          }}
-                        />
-                      </View>
+                      <MessageBubble
+                        key={`message-${msg.id}`} // Ensure unique keys by prefixing with "message-"
+                        {...msg}
+                        onLongPress={() =>
+                          onMessageLongPress(msg.id, msg.text, msg.isSender)
+                        }
+                      />
                     );
                   }
                 })
               )}
+            
             </ScrollView>
             <ChatInput
               onSend={handleSend}
-              onPickImage={pickImage}
+              onPickImage={pickImage} // Ajout de la gestion de l'envoi d'image
               replyTo={replyTo}
-              editing={editing}
               onCancelReply={() => setReplyTo(null)}
-              onSaveEdit={() => {}}
+              editing={editing}
+              onSaveEdit={(text) => saveEditedMessage(text)}
               onCancelEdit={() => setEditing(null)}
             />
-
-            {/* Drawer Modal */}
-            <Modal
+            <MessageActionsModal
               visible={messageDrawerVisible}
-              animationType="slide"
-              transparent
-              onRequestClose={onCancelFromDrawer}
-            >
-              <TouchableOpacity
-                style={styles.modalOverlay}
-                activeOpacity={1}
-                onPress={onCancelFromDrawer}
-              />
-              <View style={styles.drawerContainer}>
-                <Text style={styles.drawerTitle}>Que voulez-vous faire ?</Text>
-
-                <TouchableOpacity
-                  style={styles.drawerButton}
-                  onPress={onReplyFromDrawer}
-                >
-                  <Text style={styles.drawerButtonText}>Répondre</Text>
-                </TouchableOpacity>
-
-                {drawerMessage?.isSender && (
-                  <>
-                    <TouchableOpacity
-                      style={styles.drawerButton}
-                      onPress={onEditFromDrawer}
-                    >
-                      <Text style={styles.drawerButtonText}>Modifier</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.drawerButton, styles.deleteButton]}
-                      onPress={onDeleteFromDrawer}
-                    >
-                      <Text style={[styles.drawerButtonText, styles.deleteText]}>
-                        Supprimer
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-
-                <TouchableOpacity
-                  style={styles.drawerButton}
-                  onPress={() => setShowEmojiPicker(true)}
-                >
-                  <Text style={styles.drawerButtonText}>Ajouter une réaction</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.drawerButton}
-                  onPress={onCancelFromDrawer}
-                >
-                  <Text style={styles.drawerButtonText}>Annuler</Text>
-                </TouchableOpacity>
-              </View>
-            </Modal>
-
-            {/* Emoji Picker */}
+              onClose={onCancelFromDrawer}
+              onReply={onReplyFromDrawer}
+              onEdit={onEditFromDrawer}
+              onDelete={onDeleteFromDrawer}
+              onReaction={() => setShowEmojiPicker(true)}
+              showEditDelete={drawerMessage?.isSender}
+            />
             <EmojiPicker
-              onEmojiSelected={onAddReactionFromDrawer}
+              onEmojiSelected={(emoji) => {
+                setShowEmojiPicker(false);
+                if (drawerMessage) {
+                  onAddReactionFromDrawer(emoji);
+                }
+              }}
               open={showEmojiPicker}
               onClose={() => setShowEmojiPicker(false)}
             />
@@ -1066,14 +800,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666666",
   },
-  chat: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
   loadingText: {
     textAlign: "center",
     padding: 16,
-    color: "#888888",
+    color: "#999999",
   },
   separatorContainer: {
     flexDirection: "row",
@@ -1088,41 +818,6 @@ const styles = StyleSheet.create({
   separatorText: {
     paddingHorizontal: 8,
     fontSize: 13,
-    color: "#888888",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  drawerContainer: {
-    backgroundColor: '#fff',
-    paddingTop: 12,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  drawerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  drawerButton: {
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-  },
-  drawerButtonText: {
-    fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
-  },
-  deleteButton: {
-    borderColor: '#eee',
-  },
-  deleteText: {
-    color: '#E53935',
-    fontWeight: '600',
+    color: "#999999",
   },
 });
