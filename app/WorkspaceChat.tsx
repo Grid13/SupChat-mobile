@@ -34,7 +34,6 @@ import dotenv from 'dotenv';
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
-
 // MessageItem type for WorkspaceChat
 // Copied from ChatScreen.tsx and adapted for channel messages
 
@@ -194,81 +193,96 @@ const WorkspaceChat: React.FC = () => {
   // Récupère les messages pour le canal sélectionné
   useEffect(() => {
     if (!selectedChannel || userId === null) {
-      return;
+        return;
     }
     let active = true;
     (async () => {
-      setMessagesLoading(true);
-      try {
-        const url = `http://${ipAddress}:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
-        const res = await fetch(url, {
-          headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
-        });
-        const txt = await res.text();
-        let json: any = [];
-        try { json = JSON.parse(txt); } catch {}
-        let arr: any[] = Array.isArray(json)
-          ? json
-          : Array.isArray(json.value)
-          ? json.value
-          : Array.isArray(json.valueOrDefault)
-          ? json.valueOrDefault
-          : [];
-        arr = arr.slice().reverse();
+        setMessagesLoading(true);
+        try {
+            const url = `http://${ipAddress}:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
+            const res = await fetch(url, {
+                headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
+            });
+            const txt = await res.text();
+            let json: any = [];
+            try { json = JSON.parse(txt); } catch {}
+            let arr: any[] = Array.isArray(json)
+                ? json
+                : Array.isArray(json.value)
+                ? json.value
+                : Array.isArray(json.valueOrDefault)
+                ? json.valueOrDefault
+                : [];
+            arr = arr.slice().reverse();
 
-        // Fetch reactions for each message
-        const messagesWithAttachments = await Promise.all(
-          arr.map(async (msg) => {
-            const attachments = await Promise.all(
-              (msg.messageAttachments || []).map(async (attachment: { attachmentId: string }) => {
-                const attachmentRes = await fetch(`http://${ipAddress}:5263/api/Attachment/${attachment.attachmentId}`, {
-                  headers: {
-                    Accept: '*/*',
-                    Authorization: `Bearer ${token}`,
-                  },
-                });
-                if (attachmentRes.ok) {
-                  return attachmentRes.url; // Use the direct URL for the attachment
-                }
-                return null;
-              })
+            // Fetch reactions and parent text for each message
+            const messagesWithAttachments = await Promise.all(
+                arr.map(async (msg) => {
+                    const attachments = await Promise.all(
+                        (msg.attachments || []).map(async (attachmentId: string) => {
+                            const attachmentRes = await fetch(`http://${ipAddress}:5263/api/Attachment/${attachmentId}`, {
+                                headers: {
+                                    Accept: '*/*',
+                                    Authorization: `Bearer ${token}`,
+                                },
+                            });
+                            if (attachmentRes.ok) {
+                                return attachmentRes.url; // Use the direct URL for the attachment
+                            }
+                            return null;
+                        })
+                    );
+
+                    const reactions = await fetchReactions(msg.id);
+
+                    let parentText = null;
+                    if (msg.parentId) {
+                        const parentRes = await fetch(`http://${ipAddress}:5263/api/Message/${msg.parentId}`, {
+                            headers: {
+                                Accept: "application/json",
+                                Authorization: `Bearer ${token}`,
+                            },
+                        });
+                        if (parentRes.ok) {
+                            const parentData = await parentRes.json();
+                            parentText = parentData.content;
+                        }
+                    }
+
+                    return {
+                        type: 'message' as const,
+                        id: msg.id,
+                        text: msg.content,
+                        time: `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(msg.sendDate).getMinutes().toString().padStart(2, '0')}`,
+                        isSender: msg.senderId === userId,
+                        senderId: msg.senderId,
+                        parentId: msg.parentId,
+                        parentText,
+                        attachments: attachments.filter((url): url is string => url !== null),
+                        reactions: reactions || [],
+                    };
+                })
             );
 
-            const reactions = await fetchReactions(msg.id);
+            // Formatage date/heure et groupement par jour
+            const formatted: MessageItem[] = [];
+            let currentDay: string | null = null;
+            messagesWithAttachments.forEach(msg => {
+                const day = format(new Date(arr.find(m => m.id === msg.id)?.sendDate), "d MMMM yyyy", { locale: fr });
+                if (day !== currentDay) {
+                    formatted.push({ type: "separator", label: day });
+                    currentDay = day;
+                }
+                formatted.push(msg);
+            });
 
-            return {
-              type: 'message' as const,
-              id: msg.id,
-              text: msg.content,
-              time: `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(msg.sendDate).getMinutes().toString().padStart(2, '0')}`,
-              isSender: msg.senderId === userId,
-              senderId: msg.senderId,
-              parentId: msg.parentId,
-              attachments: attachments.filter((url): url is string => url !== null),
-              reactions: reactions || [],
-            };
-          })
-        );
-
-        // Formatage date/heure et groupement par jour
-        const formatted: MessageItem[] = [];
-        let currentDay: string | null = null;
-        messagesWithAttachments.forEach(msg => {
-          const day = format(new Date(arr.find(m => m.id === msg.id)?.sendDate), "d MMMM yyyy", { locale: fr });
-          if (day !== currentDay) {
-            formatted.push({ type: "separator", label: day });
-            currentDay = day;
-          }
-          formatted.push(msg);
-        });
-
-        if (active) setMessages(formatted);
-      } catch (err: any) {
-        console.error("Error fetching messages:", err);
-        Alert.alert("Erreur API", err.message || "Impossible de charger les messages");
-      } finally {
-        active && setMessagesLoading(false);
-      }
+            if (active) setMessages(formatted);
+        } catch (err: any) {
+            console.error("Error fetching messages:", err);
+            Alert.alert("Erreur API", err.message || "Impossible de charger les messages");
+        } finally {
+            active && setMessagesLoading(false);
+        }
     })();
     return () => { active = false; };
   }, [selectedChannel, userId, token, workspaceAvatar]);
@@ -304,11 +318,9 @@ const WorkspaceChat: React.FC = () => {
     const formData = new FormData();
     formData.append('file', { uri, name, type } as any);
 
-    console.log('[WorkspaceChat] Uploading image:', { uri, name, type });
-
     try {
       const up = await fetch(
-        `http://${ipAddress}:5263/api/Attachment?attachmentType=Image`,
+        `http://${ipAddress}:5263/api/Attachment?attachmentType=ChannelMessage`,
         {
           method: "POST",
           headers: {
@@ -318,14 +330,10 @@ const WorkspaceChat: React.FC = () => {
           body: formData,
         }
       );
-      const responseText = await up.text();
-      console.log('[WorkspaceChat] Upload response:', { status: up.status, responseText });
-
       if (!up.ok) throw new Error(`Upload failed ${up.status}`);
-      const { id: attachmentId } = JSON.parse(responseText);
+      const { id: attachmentId } = await up.json();
       await sendImageMessage([attachmentId], [uri]);
     } catch (e: any) {
-      console.error('[WorkspaceChat] Upload error:', e);
       Alert.alert("Erreur", e.message);
     }
   };
@@ -353,17 +361,7 @@ const WorkspaceChat: React.FC = () => {
       );
       if (res.ok) {
         const msg = await res.json();
-        const newMessage: MessageItem = {
-          type: 'message',
-          id: msg.id,
-          text: msg.content,
-          time: `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(msg.sendDate).getMinutes().toString().padStart(2, '0')}`,
-          isSender: true,
-          senderId: userId!,
-          parentId: msg.parentId,
-          attachments: uris,
-        };
-        setMessages((prev) => [...prev, newMessage]);
+        // L'affichage du message sera géré par le SignalR (handleReceiveSocket)
         setReplyTo(null);
       } else {
         throw new Error(`Status ${res.status}`);
@@ -373,15 +371,48 @@ const WorkspaceChat: React.FC = () => {
     }
   };
 
-  // Envoi d'un message texte (avec support reply)
+  // Fonction pour envoyer un message (texte ou réponse)
   const handleSend = async (text: string) => {
     if (!selectedChannel) return;
-    if (editing) return; // (optionnel: à adapter si édition)
+
+    if (editing) {
+      // Enregistrer les modifications
+      try {
+        const res = await fetch(
+          `http://${ipAddress}:5263/api/Message/${editing.id}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ content: text }),
+          }
+        );
+        if (res.ok) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.type === "message" && m.id === editing.id
+                ? { ...m, text }
+                : m
+            )
+          );
+          setEditing(null);
+        } else {
+          Alert.alert("Erreur serveur", `Statut ${res.status}`);
+        }
+      } catch (e: any) {
+        Alert.alert("Erreur", e.message || "Une erreur est survenue.");
+      }
+      return;
+    }
+
     const body: any = {
       content: text,
       channelId: selectedChannel.id,
     };
     if (replyTo) body.parentId = replyTo.id;
+
     try {
       const res = await fetch(
         `http://${ipAddress}:5263/api/Message/PostInChannel`,
@@ -395,7 +426,6 @@ const WorkspaceChat: React.FC = () => {
         }
       );
       if (res.ok) {
-        // Le message sera reçu via SignalR (handleReceiveSocket)
         setReplyTo(null);
       } else {
         Alert.alert("Erreur serveur", `Statut ${res.status}`);
@@ -486,21 +516,13 @@ const WorkspaceChat: React.FC = () => {
   const handleReceiveSocket = useCallback(
     (msg: any) => {
       if (!selectedChannel || msg.channelId !== selectedChannel.id) return;
-
-      // Prevent duplicate messages by checking if the message already exists
-      setMessages((prev) => {
-        if (prev.some((m) => m.type === "message" && m.id === msg.id)) {
-          console.log(`[WorkspaceChat] Duplicate message ignored: ${msg.id}`);
-          return prev;
-        }
-
-        const day = format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr });
-        const time = `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(
-          msg.sendDate
-        ).getMinutes().toString().padStart(2, '0')}`;
-
+      const day = format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr });
+      const time = `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(
+        msg.sendDate
+      ).getMinutes().toString().padStart(2, '0')}`;
+      setMessages(prev => {
         const copy = [...prev];
-        if (!copy.find((m) => m.type === "separator" && m.label === day)) {
+        if (!copy.find(m => m.type === "separator" && m.label === day)) {
           copy.push({ type: "separator", label: day });
         }
         copy.push({
@@ -511,12 +533,12 @@ const WorkspaceChat: React.FC = () => {
           isSender: msg.senderId === userId,
           senderId: msg.senderId,
           parentId: msg.parentId,
-          attachments: msg.messageAttachments?.map((att: any) => att.attachmentId) || [],
+          attachments: msg.attachments,
         });
         return copy;
       });
     },
-    [selectedChannel, userId] // Remove workspaceAvatar from dependencies
+    [selectedChannel, userId]  // Remove workspaceAvatar from dependencies
   );
 
   // Abonnement au channel via SignalR
@@ -546,6 +568,10 @@ const WorkspaceChat: React.FC = () => {
     }
     setReplyTo(null);
     setMessageDrawerVisible(false);
+  };
+
+  const onCancelEdit = () => {
+    setEditing(null);
   };
 
   const deleteMessage = async (msgId: number) => {
@@ -682,7 +708,7 @@ const WorkspaceChat: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top","bottom"]}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <PanGestureHandler onHandlerStateChange={onHandlerStateChange} activeOffsetX={10}>
         <KeyboardAvoidingView
           style={styles.flex}
@@ -897,55 +923,35 @@ const WorkspaceChat: React.FC = () => {
               contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
               keyboardShouldPersistTaps="handled"
             >
-              {messagesLoading ? (
-                <Text style={styles.loadingText}>Chargement…</Text>
-              ) : (
-                messages.map((msg, idx) => {
-                  if (msg.type === "separator") {
-                    return (
-                      <View key={idx} style={styles.separatorContainer}>
-                        <View style={styles.line} />
-                        <Text style={styles.separatorText}>{msg.label}</Text>
-                        <View style={styles.line} />
-                      </View>
-                    );
-                  } else {
-                    let ref = undefined;
-                    if ((msg as any).id) {
-                      if (!messageRefs.current[(msg as any).id]) {
-                        messageRefs.current[(msg as any).id] = createRef<View>();
-                      }
-                      ref = messageRefs.current[(msg as any).id];
+              {messages.map((msg, idx) => {
+                if (msg.type === "separator") {
+                  return (
+                    <View key={idx} style={styles.separatorContainer}>
+                      <Text style={styles.separatorText}>{msg.label}</Text>
+                    </View>
+                  );
+                } else {
+                  let ref = undefined;
+                  if ((msg as any).id) {
+                    if (!messageRefs.current[(msg as any).id]) {
+                      messageRefs.current[(msg as any).id] = createRef<View>();
                     }
-                    return (
-                      <View ref={ref} key={(msg as any).id ?? idx}>
-                        <MessageBubble
-                          {...msg}
-                          onAddReaction={(reaction) => {
-                            setMessages((prevMsgs) =>
-                              prevMsgs.map((m) => {
-                                if (m.type === 'message' && m.id === msg.id) {
-                                  // Avoid duplicate reactions
-                                  const reactions = Array.isArray(m.reactions) ? m.reactions : [];
-                                  if (!reactions.find(r => r.id === reaction.id)) {
-                                    return { ...m, reactions: [...reactions, reaction] };
-                                  }
-                                }
-                                return m;
-                              })
-                            );
-                          }}
-                          onLongPress={() => {
-                            if (msg.id !== undefined) { // Add type check
-                              onMessageLongPress(msg.id, msg.text, msg.isSender)
-                            }
-                          }}
-                        />
-                      </View>
-                    );
+                    ref = messageRefs.current[(msg as any).id];
                   }
-                })
-              )}
+                  return (
+                    <View ref={ref} key={(msg as any).id ?? idx}>
+                      <MessageBubble
+                        {...msg}
+                        onLongPress={() => {
+                          if (msg.id !== undefined) {
+                            onMessageLongPress(msg.id, msg.text, msg.isSender);
+                          }
+                        }}
+                      />
+                    </View>
+                  );
+                }
+              })}
             </ScrollView>
             <ChatInput
               onSend={handleSend}
@@ -953,8 +959,8 @@ const WorkspaceChat: React.FC = () => {
               replyTo={replyTo}
               editing={editing}
               onCancelReply={() => setReplyTo(null)}
-              onSaveEdit={() => {}}
-              onCancelEdit={() => setEditing(null)}
+              onSaveEdit={(text) => handleSend(text)}
+              onCancelEdit={onCancelEdit}
             />
 
             {/* Drawer Modal */}
@@ -1080,11 +1086,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginVertical: 8,
   },
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#eeeeee",
-  },
   separatorText: {
     paddingHorizontal: 8,
     fontSize: 13,
@@ -1124,5 +1125,15 @@ const styles = StyleSheet.create({
   deleteText: {
     color: '#E53935',
     fontWeight: '600',
+  },
+  replyContainer: {
+    backgroundColor: "#f0f0f0",
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  replyText: {
+    fontSize: 13,
+    color: "#555",
   },
 });
