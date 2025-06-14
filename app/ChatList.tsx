@@ -17,6 +17,13 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import { useSelector } from "react-redux";
 import { RootState } from "./store/store";
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
+
+
+console.log(`Using IP Address: +ipAddress+`);
 
 const ChatList: React.FC = () => {
   const router = useRouter();
@@ -36,7 +43,7 @@ const ChatList: React.FC = () => {
   const fetchUsers = async () => {
     if (!token) return;
     try {
-      const res = await fetch("http://192.168.1.161:5263/api/User/Mp", {
+      const res = await fetch(`http://`+ipAddress+`:5263/api/User/Mp`, {
         headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
       });
       const text = await res.text();
@@ -54,7 +61,7 @@ const ChatList: React.FC = () => {
     if (!token) return;
     try {
       const res = await fetch(
-        "http://192.168.1.161:5263/api/User?pageNumber=1&pageSize=50",
+        `http://`+ipAddress+`:5263/api/User?pageNumber=1&pageSize=50`,
         { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error(`Status ${res.status}`);
@@ -71,7 +78,7 @@ const ChatList: React.FC = () => {
   const fetchCurrentUser = async () => {
     if (!token) return;
     try {
-      const res = await fetch("http://192.168.1.161:5263/api/Account/Me", {
+      const res = await fetch(`http://`+ipAddress+`:5263/api/Account/Me`, {
         headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
@@ -155,7 +162,7 @@ const ChatList: React.FC = () => {
   const createBot = async (name: string) => {
     try {
       console.log('Creating bot with name:', name);
-      const res = await fetch('http://192.168.1.161:5263/api/Bot', {
+      const res = await fetch('http://'+ipAddress+':5263/api/Bot', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

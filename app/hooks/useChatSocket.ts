@@ -2,6 +2,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { HubConnection } from "@microsoft/signalr";
 import { createChatConnection } from "./useSocketConnexion";
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 /**
  * Hook pour gérer la connexion SignalR et l’envoi/réception de messages.
@@ -85,7 +88,7 @@ const useChatMessages = (
     async (receiverId: number, content: string): Promise<ChatMessageDto> => {
       // Même logique qu’auparavant : on appelle l’API REST pour poster le message
       const res = await fetch(
-        `http://192.168.1.161:5263/api/Message/PostForUser`,
+        `http://`+ipAddress+`:5263/api/Message/PostForUser`,
         {
           method: "POST",
           headers: {

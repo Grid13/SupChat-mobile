@@ -13,7 +13,7 @@ export function useUserData(userId: number | undefined, token: string | null) {
   
   const profileImage = useProfileImage(
     userData?.profilePictureId 
-      ? `http://192.168.1.161:5263/api/Attachment/${userData.profilePictureId}`
+      ? `http://`+ipAddress+`:5263/api/Attachment/${userData.profilePictureId}`
       : undefined,
     token || ''
   );
@@ -23,7 +23,7 @@ export function useUserData(userId: number | undefined, token: string | null) {
 
     const fetchUser = async () => {
       try {
-        const res = await fetch(`http://192.168.1.161:5263/api/User/${userId}`, {
+        const res = await fetch(`http://`+ipAddress+`:5263/api/User/${userId}`, {
           headers: { 
             Accept: "application/json",
             Authorization: `Bearer ${token}` 

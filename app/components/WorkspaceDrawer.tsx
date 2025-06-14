@@ -7,10 +7,16 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useSelector } from "react-redux";
 import CreateChannelModal from "./CreateChannelModal";
+import { RootState } from "../store/store";
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 export type Channel = {
   id: number;
@@ -47,8 +53,34 @@ const WorkspaceDrawer: React.FC<Props> = ({
 }) => {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const router = useRouter();
+  const token = useSelector((state: RootState) => state.auth.token); // Retrieve token from Redux store
 
   if (!visible) return null;
+
+  const deleteChannel = async (channelId: number) => {
+    try {
+      const res = await fetch(
+        `http://${ipAddress}:5263/api/Channel/${channelId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Accept: "text/plain",
+            Authorization: `Bearer ${token}`, // Use token here
+          },
+        }
+      );
+      if (res.ok) {
+        Alert.alert("Success", "Channel deleted successfully.");
+        onChannelCreated?.(); // Refresh the channel list
+      } else {
+        Alert.alert("Error", `Failed to delete channel (status ${res.status}).`);
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "An error occurred.");
+    }
+  };
+
+  console.log(`Using IP Address: ${ipAddress}`);
 
   return (
     <View style={styles.overlay}>
@@ -63,7 +95,9 @@ const WorkspaceDrawer: React.FC<Props> = ({
             style={styles.workspaceAvatar}
           />
           <View>
-            <Text style={styles.workspaceName}>{workspaceName}</Text>
+            <Text style={[styles.workspaceName, { flexShrink: 1, maxWidth: 120 }]} numberOfLines={1} ellipsizeMode="tail">
+              {workspaceName}
+            </Text>
             <TouchableOpacity
               style={styles.settingsIcon}
               onPress={() =>
@@ -89,34 +123,54 @@ const WorkspaceDrawer: React.FC<Props> = ({
             </Text>
           ) : (
             channels.map((ch: Channel) => (
-              <TouchableOpacity
-                key={ch.id}
-                style={[
-                  styles.channelRow,
-                  ch.id === selectedChannelId && { backgroundColor: "#e7f1ff" },
-                ]}
-                onPress={() => onChannelPress?.(ch)}
-              >
-                <Ionicons
-                  name={(ch.icon as any) || "chatbubbles-outline"}
-                  size={20}
-                  style={{ marginRight: 6 }}
-                  color={ch.id === selectedChannelId ? "#4F8CFF" : "#222"}
-                />
-                <Text
+              <View key={ch.id} style={styles.channelRowContainer}>
+                <TouchableOpacity
                   style={[
-                    styles.channelName,
-                    ch.id === selectedChannelId && styles.activeChannel,
+                    styles.channelRow,
+                    ch.id === selectedChannelId && { backgroundColor: "#e7f1ff" },
                   ]}
+                  onPress={() => onChannelPress?.(ch)}
                 >
-                  {ch.name}
-                </Text>
-                {ch.unread && ch.unread > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{ch.unread}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+                  <Ionicons
+                    name={(ch.icon as any) || "chatbubbles-outline"}
+                    size={20}
+                    style={{ marginRight: 6 }}
+                    color={ch.id === selectedChannelId ? "#4F8CFF" : "#222"}
+                  />
+                  <Text
+                    style={[
+                      styles.channelName,
+                      ch.id === selectedChannelId && styles.activeChannel,
+                    ]}
+                  >
+                    {ch.name}
+                  </Text>
+                  {ch.unread && ch.unread > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{ch.unread}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteIcon}
+                  onPress={() =>
+                    Alert.alert(
+                      "Delete Channel",
+                      `Are you sure you want to delete the channel "${ch.name}"?`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Delete",
+                          style: "destructive",
+                          onPress: () => deleteChannel(ch.id),
+                        },
+                      ]
+                    )
+                  }
+                >
+                  <Ionicons name="trash-outline" size={20} color="#E53935" />
+                </TouchableOpacity>
+              </View>
             ))
           )}
 
@@ -213,6 +267,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 3,
   },
+  channelRowContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   channelName: {
     fontSize: 15,
     color: "#222",
@@ -256,5 +315,8 @@ const styles = StyleSheet.create({
   },
   closeArea: {
     flex: 1,
+  },
+  deleteIcon: {
+    padding: 8,
   },
 });

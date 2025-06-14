@@ -5,15 +5,63 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
+  Alert,
 } from 'react-native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store/store';
+import { useRouter } from 'expo-router'; // Import useRouter for navigation
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 interface DropdownMenuProps {
   visible: boolean;
   onClose: () => void;
   onViewInfo?: () => void;
+  workspaceId: number; // Add workspaceId prop
 }
 
-const DropdownMenu: React.FC<DropdownMenuProps> = ({ visible, onClose, onViewInfo }) => {
+const DropdownMenu: React.FC<DropdownMenuProps> = ({ visible, onClose, onViewInfo, workspaceId }) => {
+  const token = useSelector((state: RootState) => state.auth.token);
+  const router = useRouter(); // Initialize router for navigation
+
+  
+
+  console.log(`Using IP Address: +ipAddress+`);
+  console.log('[DropdownMenu] workspaceId:', workspaceId);
+
+  const leaveWorkspace = async () => {
+    try {
+      const res = await fetch(`http://`+ipAddress+`:5263/api/Workspace/${workspaceId}/Leave`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        Alert.alert('Success', 'You have left the workspace.');
+        onClose();
+        router.push('/(tabs)/Workspaces');
+      } else {
+        Alert.alert('Error', `Failed to leave workspace (status ${res.status}).`);
+        console.error('[DropdownMenu] Error leaving workspace:', res.statusText);
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'An error occurred.');
+    }
+  };
+
+  const confirmLeaveWorkspace = () => {
+    Alert.alert(
+      'Leave Workspace',
+      'Are you sure you want to leave this workspace?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: leaveWorkspace },
+      ]
+    );
+  };
+
   return (
     <Modal transparent visible={visible} animationType="fade">
       <TouchableOpacity style={styles.overlay} onPress={onClose} activeOpacity={1}>
@@ -29,7 +77,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({ visible, onClose, onViewInf
           <TouchableOpacity onPress={onClose}>
             <Text style={styles.menuItem}>Mute Notifications</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={confirmLeaveWorkspace}>
             <Text style={styles.menuItemDanger}>Leave Workspace</Text>
           </TouchableOpacity>
         </View>

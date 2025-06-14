@@ -2,6 +2,9 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Controller } from "react-hook-form";
 import InputField from "./InputField";
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 interface LoginProps {
   control: any;

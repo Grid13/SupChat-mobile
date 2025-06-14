@@ -11,6 +11,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 import { RootState } from "../store/store";
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
 
 type Props = {
   visible: boolean;
@@ -31,7 +35,7 @@ const CreateChannelModal: React.FC<Props> = ({ visible, onClose, onCreated, work
     try {
       setLoading(true);
 
-      const response = await fetch(`http://192.168.1.161:5263/api/Workspace/${workspaceId}/Channels`, {
+      const response = await fetch(`http://`+ipAddress+`:5263/api/Workspace/${workspaceId}/Channels`, {
         method: "POST",
         headers: {
           Accept: "text/plain",

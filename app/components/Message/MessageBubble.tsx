@@ -5,6 +5,9 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
 import { useMessageSender } from '../../hooks/useMessageSender';
 import EmojiPicker from 'rn-emoji-keyboard';
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 // Add parentId to the props interface
 interface MessageBubbleProps {
@@ -42,35 +45,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const token = useSelector((state: RootState) => state.auth.token);
   const { avatarUrl } = useMessageSender(senderId, token);
-
-  const handleEmojiSelect = async (emoji: any) => {
-    if (!id) return;
-
-    try {
-      const res = await fetch(
-        `http://192.168.1.161:5263/api/Message/${id}/Reactions`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            content: emoji.emoji,
-          }),
-        }
-      );
-
-      if (!res.ok) throw new Error('Failed to add reaction');
-      const newReaction = await res.json();
-      if (onAddReaction && newReaction) {
-        onAddReaction(newReaction);
-      }
-      setIsOpen(false);
-    } catch (err) {
-      console.error('Error adding reaction:', err);
-    }
-  };
 
   return (
     <TouchableOpacity
@@ -165,12 +139,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       {isSender && (
         <Image source={{ uri: avatarUrl }} style={styles.avatar} />
       )}
-
-      <EmojiPicker
-        onEmojiSelected={handleEmojiSelect}
-        open={isOpen}
-        onClose={() => setIsOpen(false)}
-      />
     </TouchableOpacity>
   );
 };

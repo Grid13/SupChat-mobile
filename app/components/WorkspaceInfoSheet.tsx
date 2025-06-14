@@ -13,6 +13,9 @@ import {
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { useProfileImage } from '../hooks/useProfileImage';
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 const screenHeight = Dimensions.get('window').height;
 
@@ -228,3 +231,6 @@ const styles = StyleSheet.create({
     color: '#888',
   },
 });
+
+
+console.log(`Using IP Address: +ipAddress+`);

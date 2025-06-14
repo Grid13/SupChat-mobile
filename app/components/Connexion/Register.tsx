@@ -4,6 +4,9 @@ import { Controller } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import InputField from "./InputField";
+import dotenv from "dotenv";
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 // Schéma de validation pour l'inscription
 const registerSchema = yup.object().shape({

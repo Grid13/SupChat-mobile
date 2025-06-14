@@ -3,6 +3,9 @@ import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { RootState } from './store/store';
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 // Interface pour le modèle de notification reçu via API
 export interface NotificationModel {
@@ -37,7 +40,7 @@ const Notification: React.FC = () => {
     const fetchNotifications = async () => {
       setLoading(true);
       try {
-        const res = await fetch('http://192.168.1.161:5263/api/Notification', {
+        const res = await fetch('http://'+ipAddress+':5263/api/Notification', {
           headers: {
             Accept: 'text/plain',
             Authorization: `Bearer ${token}`,

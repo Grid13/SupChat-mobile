@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   TextInput,
+  Modal,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { PanGestureHandler, State } from "react-native-gesture-handler";
@@ -28,6 +29,13 @@ import useChannelSocket from "./hooks/useChannelSocket";
 import { useSocket } from "./hooks/SocketProvider";
 import * as ImagePicker from "expo-image-picker";
 import { useProfileImage } from "./hooks/useProfileImage";
+import EmojiPicker from 'rn-emoji-keyboard';
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
+
+console.log(`Using IP Address: +ipAddress+`);
 
 // MessageItem type for WorkspaceChat
 // Copied from ChatScreen.tsx and adapted for channel messages
@@ -102,7 +110,7 @@ const WorkspaceChat: React.FC = () => {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [infoVisible, setInfoVisible] = useState(false);
-  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [navDrawerVisible, setNavDrawerVisible] = useState(false); // Rename for navigation drawer
   const [userId, setUserId] = useState<number | null>(null);
 
   // Pour la réponse à un message
@@ -118,13 +126,22 @@ const WorkspaceChat: React.FC = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [unifiedSearchResults, setUnifiedSearchResults] = useState<UnifiedSearchResult | null>(null);
 
+  // States pour le message drawer
+  const [messageDrawerVisible, setMessageDrawerVisible] = useState(false);
+  const [drawerMessage, setDrawerMessage] = useState<{
+    id: number;
+    text: string;
+    isSender: boolean;
+  } | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
   // Compute workspaceAvatar using profile picture if available, with hook for protected images
   let workspaceAvatarUrl = typeof avatar === 'string' && avatar
     ? avatar
     : `https://ui-avatars.com/api/?name=${encodeURIComponent(name as string || 'Workspace')}`;
   const tokenStr = token || "";
   const avatarBase64 = useProfileImage(
-    workspaceAvatarUrl.startsWith("http://192.168.1.161:5263/api/Attachment/")
+    workspaceAvatarUrl.startsWith("http://"+ipAddress+":5263/api/Attachment/")
       ? workspaceAvatarUrl
       : undefined,
     tokenStr
@@ -136,7 +153,7 @@ const WorkspaceChat: React.FC = () => {
     setChannelsLoading(true);
     try {
       const res = await fetch(
-        `http://192.168.1.161:5263/api/Workspace/${id}/Channels`,
+        `http://`+ipAddress+`:5263/api/Workspace/${id}/Channels`,
         { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } }
       );
       const txt = await res.text();
@@ -162,7 +179,7 @@ const WorkspaceChat: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("http://192.168.1.161:5263/api/Account/Me", {
+        const res = await fetch("http://"+ipAddress+":5263/api/Account/Me", {
           headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -185,7 +202,7 @@ const WorkspaceChat: React.FC = () => {
     (async () => {
       setMessagesLoading(true);
       try {
-        const url = `http://192.168.1.161:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
+        const url = `http://`+ipAddress+`:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`;
         const res = await fetch(url, {
           headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
         });
@@ -206,7 +223,7 @@ const WorkspaceChat: React.FC = () => {
           arr.map(async (msg) => {
             let reactions = [];
             try {
-              const rRes = await fetch(`http://192.168.1.161:5263/api/Message/${msg.id}/Reactions`, {
+              const rRes = await fetch(`http://`+ipAddress+`:5263/api/Message/${msg.id}/Reactions`, {
                 headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
               });
               if (rRes.ok) {
@@ -258,8 +275,8 @@ const WorkspaceChat: React.FC = () => {
   // Gère le geste pour ouvrir/fermer le drawer
   const onHandlerStateChange = ({ nativeEvent }: any) => {
     if (nativeEvent.state === State.END) {
-      if (nativeEvent.translationX > 20) setDrawerVisible(true);
-      if (nativeEvent.translationX < -20) setDrawerVisible(false);
+      if (nativeEvent.translationX > 20) setNavDrawerVisible(true);
+      if (nativeEvent.translationX < -20) setNavDrawerVisible(false);
     }
   };
 
@@ -285,7 +302,7 @@ const WorkspaceChat: React.FC = () => {
 
     try {
       const up = await fetch(
-        `http://192.168.1.161:5263/api/Attachment?attachmentType=ChannelMessage`,
+        `http://`+ipAddress+`:5263/api/Attachment?attachmentType=ChannelMessage`,
         {
           method: "POST",
           headers: {
@@ -314,7 +331,7 @@ const WorkspaceChat: React.FC = () => {
     if (replyTo) body.parentId = replyTo.id;
     try {
       const res = await fetch(
-        "http://192.168.1.161:5263/api/Message/PostInChannel",
+        "http://"+ipAddress+":5263/api/Message/PostInChannel",
         {
           method: "POST",
           headers: {
@@ -347,7 +364,7 @@ const WorkspaceChat: React.FC = () => {
     if (replyTo) body.parentId = replyTo.id;
     try {
       const res = await fetch(
-        "http://192.168.1.161:5263/api/Message/PostInChannel",
+        "http://"+ipAddress+":5263/api/Message/PostInChannel",
         {
           method: "POST",
           headers: {
@@ -378,7 +395,7 @@ const WorkspaceChat: React.FC = () => {
     }
     setSearchLoading(true);
     try {
-      const url = `http://192.168.1.161:5263/api/Workspace/${id}/UnifiedSearch?search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`;
+      const url = `http://`+ipAddress+`:5263/api/Workspace/${id}/UnifiedSearch?search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`;
       const res = await fetch(url, {
         headers: {
           Accept: "application/json",
@@ -482,6 +499,143 @@ const WorkspaceChat: React.FC = () => {
     token: token || "",
   });
 
+  // Add drawer handlers
+  const onMessageLongPress = (msgId: number, msgText: string, isSender: boolean) => {
+    setDrawerMessage({ id: msgId, text: msgText, isSender });
+    setMessageDrawerVisible(true);
+  };
+
+  const onReplyFromDrawer = () => {
+    if (drawerMessage) {
+      setReplyTo({ id: drawerMessage.id, text: drawerMessage.text });
+    }
+    setMessageDrawerVisible(false);
+  };
+
+  const onEditFromDrawer = () => {
+    if (drawerMessage && drawerMessage.isSender) {
+      setEditing({ id: drawerMessage.id, text: drawerMessage.text });
+    }
+    setReplyTo(null);
+    setMessageDrawerVisible(false);
+  };
+
+  const deleteMessage = async (msgId: number) => {
+    try {
+      const res = await fetch(
+        `http://`+ipAddress+`:5263/api/Message/${msgId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (res.ok) {
+        setMessages((prev) =>
+          prev.filter((m) => !(m.type === 'message' && m.id === msgId))
+        );
+      } else {
+        Alert.alert(
+          'Erreur serveur',
+          `Impossible de supprimer (status ${res.status})`
+        );
+      }
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
+    }
+  };
+
+  const onDeleteFromDrawer = () => {
+    if (drawerMessage && drawerMessage.isSender) {
+      deleteMessage(drawerMessage.id);
+    }
+    setMessageDrawerVisible(false);
+  };
+
+  const onCancelFromDrawer = () => {
+    setMessageDrawerVisible(false);
+  };
+
+  // Add reaction handling
+  const sendReaction = async (messageId: number, emoji: string) => {
+    console.log('[WorkspaceChat] Sending reaction:', { messageId, emoji });
+    try {
+      const url = `http://`+ipAddress+`:5263/api/Message/${messageId}/Reactions`;
+      console.log('[WorkspaceChat] Request URL:', url);
+      console.log('[WorkspaceChat] Request headers:', {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      });
+
+      const body = JSON.stringify({ content: emoji });
+      console.log('[WorkspaceChat] Request body:', body);
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body
+      });
+
+      const responseText = await res.text();
+      console.log('[WorkspaceChat] Response status:', res.status);
+      console.log('[WorkspaceChat] Response body:', responseText);
+
+      if (!res.ok) {
+        console.error('[WorkspaceChat] Reaction error:', res.status, responseText);
+      }
+
+      // Try to parse response and update UI
+      try {
+        const reactionData = JSON.parse(responseText);
+        console.log('[WorkspaceChat] Parsed reaction data:', reactionData);
+        return reactionData;
+      } catch (e) {
+        console.error('[WorkspaceChat] Failed to parse reaction response:', e);
+      }
+
+    } catch (e) {
+      console.error('[WorkspaceChat] sendReaction error:', e);
+    }
+  };
+
+  const onAddReactionFromDrawer = (emoji: any) => {
+    console.log('[WorkspaceChat] onAddReactionFromDrawer called with emoji:', emoji);
+    if (drawerMessage) {
+      console.log('[WorkspaceChat] drawerMessage:', drawerMessage);
+      try {
+        sendReaction(drawerMessage.id, emoji.emoji).then(reactionData => {
+          console.log('[WorkspaceChat] Reaction sent successfully:', reactionData);
+          setMessages(prev => {
+            console.log('[WorkspaceChat] Updating messages with new reaction');
+            return prev.map(m => {
+              if (m.type === 'message' && m.id === drawerMessage.id) {
+                console.log('[WorkspaceChat] Adding reaction to message:', m.id);
+                const updatedMessage = {
+                  ...m,
+                  reactions: [...(m.reactions || []), reactionData]
+                };
+                console.log('[WorkspaceChat] Updated message:', updatedMessage);
+                return updatedMessage;
+              }
+              return m;
+            });
+          });
+        });
+      } catch (e: any) {
+        console.error('[WorkspaceChat] Error in onAddReactionFromDrawer:', e);
+        Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
+      }
+      setMessageDrawerVisible(false);
+      setShowEmojiPicker(false);
+    } else {
+      console.log('[WorkspaceChat] No drawerMessage found');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top","bottom"]}>
       <PanGestureHandler onHandlerStateChange={onHandlerStateChange} activeOffsetX={10}>
@@ -492,11 +646,11 @@ const WorkspaceChat: React.FC = () => {
         >
           <View style={styles.container}>
             <WorkspaceDrawer
-              visible={drawerVisible}
-              onClose={() => setDrawerVisible(false)}
+              visible={navDrawerVisible}
+              onClose={() => setNavDrawerVisible(false)}
               onChannelPress={ch => {
                 setSelectedChannel(ch);
-                setDrawerVisible(false);
+                setNavDrawerVisible(false);
               }}
               workspaceId={Number(id)}
               workspaceName={name as string}
@@ -544,6 +698,7 @@ const WorkspaceChat: React.FC = () => {
             <DropdownMenu
               visible={menuVisible}
               onClose={() => setMenuVisible(false)}
+              workspaceId={Number(id)} // Pass workspaceId here
             />
 
             {/* Barre de recherche messages */}
@@ -576,7 +731,7 @@ const WorkspaceChat: React.FC = () => {
                         <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Users</Text>
                         {unifiedSearchResults.userList.map((user) => {
                           const userAvatar = user.profilePictureId 
-                            ? `http://192.168.1.161:5263/api/Attachment/${user.profilePictureId}`
+                            ? `http://`+ipAddress+`:5263/api/Attachment/${user.profilePictureId}`
                             : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || 'User')}`;
                           
                           return (
@@ -735,6 +890,11 @@ const WorkspaceChat: React.FC = () => {
                               })
                             );
                           }}
+                          onLongPress={() => {
+                            if (msg.id !== undefined) { // Add type check
+                              onMessageLongPress(msg.id, msg.text, msg.isSender)
+                            }
+                          }}
                         />
                       </View>
                     );
@@ -750,6 +910,70 @@ const WorkspaceChat: React.FC = () => {
               onCancelReply={() => setReplyTo(null)}
               onSaveEdit={() => {}}
               onCancelEdit={() => setEditing(null)}
+            />
+
+            {/* Drawer Modal */}
+            <Modal
+              visible={messageDrawerVisible}
+              animationType="slide"
+              transparent
+              onRequestClose={onCancelFromDrawer}
+            >
+              <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={onCancelFromDrawer}
+              />
+              <View style={styles.drawerContainer}>
+                <Text style={styles.drawerTitle}>Que voulez-vous faire ?</Text>
+
+                <TouchableOpacity
+                  style={styles.drawerButton}
+                  onPress={onReplyFromDrawer}
+                >
+                  <Text style={styles.drawerButtonText}>Répondre</Text>
+                </TouchableOpacity>
+
+                {drawerMessage?.isSender && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.drawerButton}
+                      onPress={onEditFromDrawer}
+                    >
+                      <Text style={styles.drawerButtonText}>Modifier</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.drawerButton, styles.deleteButton]}
+                      onPress={onDeleteFromDrawer}
+                    >
+                      <Text style={[styles.drawerButtonText, styles.deleteText]}>
+                        Supprimer
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                <TouchableOpacity
+                  style={styles.drawerButton}
+                  onPress={() => setShowEmojiPicker(true)}
+                >
+                  <Text style={styles.drawerButtonText}>Ajouter une réaction</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.drawerButton}
+                  onPress={onCancelFromDrawer}
+                >
+                  <Text style={styles.drawerButtonText}>Annuler</Text>
+                </TouchableOpacity>
+              </View>
+            </Modal>
+
+            {/* Emoji Picker */}
+            <EmojiPicker
+              onEmojiSelected={onAddReactionFromDrawer}
+              open={showEmojiPicker}
+              onClose={() => setShowEmojiPicker(false)}
             />
           </View>
         </KeyboardAvoidingView>
@@ -820,5 +1044,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     fontSize: 13,
     color: "#888888",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  drawerContainer: {
+    backgroundColor: '#fff',
+    paddingTop: 12,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  drawerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  drawerButton: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+  },
+  drawerButtonText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+  },
+  deleteButton: {
+    borderColor: '#eee',
+  },
+  deleteText: {
+    color: '#E53935',
+    fontWeight: '600',
   },
 });

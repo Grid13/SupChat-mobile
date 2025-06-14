@@ -20,6 +20,11 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "../store/store";
 import { useRouter } from "expo-router";
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
+console.log(`Using IP Address: +ipAddress+`);
 
 type Props = {
   visible: boolean;
@@ -77,7 +82,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
   const fetchAvailableWorkspaces = async () => {
     setLoadingJoinList(true);
     try {
-      const response = await fetch("http://192.168.1.161:5263/api/Workspace/Available", {
+      const response = await fetch(`+ipAddress+/api/Workspace/Available`, {
         headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
       });
       const text = await response.text();
@@ -108,7 +113,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
             try {
               setLoadingJoinList(true);
               const res = await fetch(
-                `http://192.168.1.161:5263/api/Workspace/${workspace.id}/Join`,
+                `+ipAddress+/api/Workspace/${workspace.id}/Join`,
                 { method: "POST", headers: { Accept: "text/plain", Authorization: `Bearer ${token}` } }
               );
               if (!res.ok) throw new Error("Erreur lors de la demande de rejoindre.");
@@ -159,7 +164,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
       form.append('file', { uri, name: filename, type } as any);
 
       const res = await fetch(
-        `http://192.168.1.161:5263/api/Attachment?attachmentType=ProfilePicture`,
+        `+ipAddress+/api/Attachment?attachmentType=ProfilePicture`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -186,7 +191,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
       const body: any = { name: name.trim(), visibility };
       if (profilePictureId) body.profilePictureId = profilePictureId;
 
-      const response = await fetch("http://192.168.1.161:5263/api/Workspace", {
+      const response = await fetch(`+ipAddress+/api/Workspace`, {
         method: "POST",
         headers: {
           Accept: "text/plain",

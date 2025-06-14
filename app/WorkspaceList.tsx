@@ -16,6 +16,11 @@ import { useSelector } from "react-redux";
 import { RootState } from "./store/store";
 import CreateWorkspaceModal from "./components/CreateWorkspaceModal";
 import { useProfileImage } from "./hooks/useProfileImage";
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
+
 
 type WorkspaceItem = {
   id: string;
@@ -42,7 +47,7 @@ const WorkspaceList: React.FC = () => {
     name: string;
   }) => {
     const imageUrl = profilePictureId
-      ? `http://192.168.1.161:5263/api/Attachment/${profilePictureId}`
+      ? `http://`+ipAddress+`:5263/api/Attachment/${profilePictureId}`
       : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
     // Fix: ensure token is always a string
     const token = useSelector((state: RootState) => state.auth.token) || "";
@@ -92,7 +97,7 @@ const WorkspaceList: React.FC = () => {
   const fetchWorkspaces = async () => {
     try {
       const response = await fetch(
-        "http://192.168.1.161:5263/api/Workspace/Joined",
+        "http://"+ipAddress+":5263/api/Workspace/Joined",
         {
           headers: {
             Accept: "text/plain",
@@ -141,7 +146,7 @@ const WorkspaceList: React.FC = () => {
             id: item.id,
             name: item.title,
             avatar: item.profilePictureId
-              ? `http://192.168.1.161:5263/api/Attachment/${item.profilePictureId}`
+              ? `http://`+ipAddress+`:5263/api/Attachment/${item.profilePictureId}`
               : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}`,
           },
         })

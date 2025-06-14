@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -34,12 +37,13 @@ const SettingsScreen = () => {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [uploading, setUploading] = useState(false);
   const [profileImageBase64, setProfileImageBase64] = useState<string | null>(null);
+  const [ownedBots, setOwnedBots] = useState<any[]>([]);
 
   const fetchProfile = async () => {
     if (!token) return;
 
     try {
-      const response = await fetch("http://192.168.1.161:5263/api/Account/Me", {
+      const response = await fetch("http://"+ipAddress+":5263/api/Account/Me", {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
@@ -54,7 +58,7 @@ const SettingsScreen = () => {
         lastName: json.applicationUser?.lastName || "-",
         image:
           json.applicationUser?.profilePictureId
-            ? `http://192.168.1.161:5263/api/Attachment/${json.applicationUser.profilePictureId}`
+            ? `http://`+ipAddress+`:5263/api/Attachment/${json.applicationUser.profilePictureId}`
             : "https://ui-avatars.com/api/?name=" +
               encodeURIComponent(json.applicationUser?.firstName || "User"),
         status: json.applicationUser?.statusLocalized || "Unknown",
@@ -73,7 +77,7 @@ const SettingsScreen = () => {
 
   useEffect(() => {
     const fetchProfileImage = async () => {
-      if (profile?.image && profile.image.startsWith('http://192.168.1.161:5263/api/Attachment/')) {
+      if (profile?.image && profile.image.startsWith('http://'+ipAddress+':5263/api/Attachment/')) {
         try {
           const res = await fetch(profile.image, {
             headers: { Authorization: `Bearer ${token}` },
@@ -108,7 +112,7 @@ const SettingsScreen = () => {
       return Alert.alert("Error", "User ID not found");
     }
     try {
-      const response = await fetch(`http://192.168.1.161:5263/api/User/${userId}/Password`, {
+      const response = await fetch(`http://`+ipAddress+`:5263/api/User/${userId}/Password`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -131,7 +135,7 @@ const SettingsScreen = () => {
   const handleExportData = async () => {
     if (!token) return;
     try {
-      const downloadUrl = 'http://192.168.1.161:5263/api/User/Export';
+      const downloadUrl = 'http://'+ipAddress+':5263/api/User/Export';
       const fileUri = FileSystem.documentDirectory + 'export-user-data.zip';
       const response = await FileSystem.downloadAsync(downloadUrl, fileUri, {
         headers: {
@@ -169,7 +173,7 @@ const SettingsScreen = () => {
           name: filename,
           type: 'image/jpeg',
         } as any);
-        const res = await fetch('http://192.168.1.161:5263/api/Attachment?attachmentType=ProfilePicture', {
+        const res = await fetch('http://'+ipAddress+':5263/api/Attachment?attachmentType=ProfilePicture', {
           method: 'POST',
           headers: {
             Accept: 'text/plain',
@@ -180,11 +184,11 @@ const SettingsScreen = () => {
         if (!res.ok) throw new Error('Upload failed');
         const data = await res.json();
         // Use the fileId to construct the image URL for GET /api/Attachment/{fileId}
-        const imageUrl = `http://192.168.1.161:5263/api/Attachment/${data.id}`;
+        const imageUrl = `http://`+ipAddress+`:5263/api/Attachment/${data.id}`;
         // PATCH to update profile picture for user
         const userId = profile?.applicationUser?.id;
         if (userId && data.id) {
-          const patchRes = await fetch(`http://192.168.1.161:5263/api/User/${userId}/ProfilePicture`, {
+          const patchRes = await fetch(`http://`+ipAddress+`:5263/api/User/${userId}/ProfilePicture`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -211,6 +215,74 @@ const SettingsScreen = () => {
       setUploading(false);
     }
   };
+
+  const fetchOwnedBots = async () => {
+    if (!token) return;
+    try {
+      const response = await fetch("http://"+ipAddress+":5263/api/Bot/GetOwnedBots", {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      const json = await response.json();
+      setOwnedBots(json);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Unable to load bots");
+    }
+  };
+
+  const fetchBotDetails = async (botId: number) => {
+    if (!token) return;
+    try {
+      const response = await fetch(`http://`+ipAddress+`:5263/api/Bot/${botId}`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      const json = await response.json();
+      Alert.alert("Bot Details", `Client ID: ${json.clientId}\nClient Secret: ${json.clientSecret}`);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Unable to fetch bot details");
+    }
+  };
+
+  const deleteBot = async (botId: number) => {
+    if (!token) return;
+    const confirm = await new Promise(resolve => {
+      Alert.alert(
+        "Confirm",
+        "Are you sure you want to delete this bot? This action cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+          { text: "Delete", style: "destructive", onPress: () => resolve(true) },
+        ]
+      );
+    });
+    if (!confirm) return;
+
+    try {
+      const response = await fetch(`http://`+ipAddress+`:5263/api/Bot/${botId}`, {
+        method: "DELETE",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      Alert.alert("Success", "Bot deleted successfully");
+      fetchOwnedBots(); // Refresh the list of owned bots
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Unable to delete bot");
+    }
+  };
+
+  useEffect(() => {
+    fetchOwnedBots();
+  }, [token]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -327,6 +399,37 @@ const SettingsScreen = () => {
           </View>
         </View>
 
+        {/* BOT SECTION */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Owned Bots</Text>
+          {ownedBots.length > 0 ? (
+            ownedBots.map((bot) => (
+              <View key={bot.id} style={styles.row}>
+                <Text style={styles.label}>{bot.userUsername}</Text>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={() => fetchBotDetails(bot.id)}
+                  >
+                    <Text style={styles.primaryButtonText}>View Details</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => deleteBot(bot.id)}
+                    style={{ padding: 5 }}
+                  >
+                    <Image
+                      source={{ uri: 'https://cdn-icons-png.flaticon.com/512/1828/1828843.png' }}
+                      style={styles.deleteIcon}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.value}>No bots found</Text>
+          )}
+        </View>
+
         {/* ACTIONS */}
         <View style={styles.actions}>
           <TouchableOpacity
@@ -359,7 +462,7 @@ const SettingsScreen = () => {
               if (!confirm) return;
               try {
                 const response = await fetch(
-                  `http://192.168.1.161:5263/api/User/${userId}`,
+                  `http://`+ipAddress+`:5263/api/User/${userId}`,
                   {
                     method: "DELETE",
                     headers: {
@@ -565,5 +668,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 200,
+  },
+  deleteIcon: {
+    width: 20,
+    height: 20,
+    tintColor: '#e74c3c', // red color for delete icon
   },
 });

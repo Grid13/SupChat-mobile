@@ -10,6 +10,9 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
+import dotenv from "dotenv";
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 const Register = () => {
   const router = useRouter();
@@ -42,7 +45,7 @@ const Register = () => {
         password: password,
       };
 
-      const response = await fetch(`http://192.168.1.161:5263/api/Account/register`, {
+      const response = await fetch(`http://`+ipAddress+`:5263/api/Account/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

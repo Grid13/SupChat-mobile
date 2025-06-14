@@ -6,6 +6,11 @@ import ChatInput from './ChatInput';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
 import { useLocalSearchParams } from 'expo-router';
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
+
 
 const Screen: React.FC = () => {
   const token = useSelector((state: RootState) => state.auth.token);
@@ -37,7 +42,7 @@ const Screen: React.FC = () => {
     if (!searchText.trim() || !token || !userId) return;
     setSearchLoading(true);
     try {
-      const response = await fetch(`http://192.168.1.161:5263/api/Message/SearchInUser?userId=${userId}&search=${encodeURIComponent(searchText)}&pageNumber=1&pageSize=10`, {
+      const response = await fetch(`http://`+ipAddress+`:5263/api/Message/SearchInUser?userId=${userId}&search=${encodeURIComponent(searchText)}&pageNumber=1&pageSize=10`, {
         headers: {
           Accept: 'text/plain',
           Authorization: `Bearer ${token}`,

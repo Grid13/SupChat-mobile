@@ -7,6 +7,9 @@ import {
 } from "@microsoft/signalr";
 import { Platform } from "react-native";
 
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
+
 /**
  * Crée et configure une instance HubConnection pour le chat.
  * Ne démarre PAS automatiquement la connexion.
@@ -25,7 +28,7 @@ export const createChatConnection = (
       : HttpTransportType.LongPolling;
 
   const connection = new HubConnectionBuilder()
-    .withUrl("http://192.168.1.161:5263/chatHub", {
+    .withUrl("http://"+ipAddress+":5263/chatHub", {
       accessTokenFactory: () => token,
       transport,
     })

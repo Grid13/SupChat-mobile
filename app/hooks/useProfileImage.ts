@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 export function useProfileImage(imageUrl?: string, token?: string) {
   const [base64, setBase64] = useState<string | null>(null);
   useEffect(() => {
-    if (imageUrl && imageUrl.startsWith('http://192.168.1.161:5263/api/Attachment/')) {
+    if (imageUrl && imageUrl.startsWith('http://'+ipAddress+':5263/api/Attachment/')) {
       (async () => {
         try {
           const res = await fetch(imageUrl, { headers: { Authorization: `Bearer ${token}` } });

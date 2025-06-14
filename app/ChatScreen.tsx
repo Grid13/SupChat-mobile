@@ -6,12 +6,12 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  TouchableOpacity,
   Text,
   Alert,
   TextInput,
+  TouchableOpacity,
 } from 'react-native';
+import EmojiPicker from 'rn-emoji-keyboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { useSelector } from 'react-redux';
@@ -24,6 +24,13 @@ import { fr } from 'date-fns/locale';
 import 'react-native-url-polyfill/auto';
 import useChatSocket, { ChatMessageDto } from './hooks/useChatSocket';
 import * as ImagePicker from 'expo-image-picker';
+import MessageActionsModal from './components/Message/MessageActionsModal';
+import dotenv from 'dotenv';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+
+
+console.log(`Using IP Address: +ipAddress+`);
 
 type MessageItem =
   | { type: 'separator'; label: string }
@@ -36,6 +43,12 @@ type MessageItem =
       senderId: number; // Replace avatar with senderId
       parentId?: number;
       attachments?: string[];
+      reactions?: Array<{
+        id: number;
+        content: string;
+        messageId: number;
+        senderId: number;
+      }>;
     };
 
 const ChatScreen: React.FC = () => {
@@ -93,7 +106,7 @@ const ChatScreen: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch('http://192.168.1.161:5263/api/Account/Me', {
+        const r = await fetch('http://'+ipAddress+':5263/api/Account/Me', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const d = await r.json();
@@ -104,20 +117,45 @@ const ChatScreen: React.FC = () => {
     })();
   }, [token]);
 
+  // Function to fetch reactions for a message
+  const fetchReactions = async (messageId: number): Promise<Array<{ id: number; content: string; messageId: number; senderId: number }>> => {
+    console.log(`[ChatScreen] Fetching reactions for message ID: ${messageId}`);
+    try {
+      const res = await fetch(`http://`+ipAddress+`:5263/api/Message/${messageId}/Reactions`, {
+        headers: {
+          Accept: 'text/plain',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      console.log(`[ChatScreen] Response status for reactions: ${res.status}`);
+      if (!res.ok) throw new Error(`Failed to fetch reactions (${res.status})`);
+      const text = await res.text();
+      console.log(`[ChatScreen] Reactions response body: ${text}`);
+      return JSON.parse(text || '[]');
+    } catch (e: any) {
+      console.error('[ChatScreen] Error fetching reactions:', e);
+      return [];
+    }
+  };
+
   // 2) Charger l'historique des messages
   const fetchMessages = useCallback(async () => {
+    console.log(`[ChatScreen] Fetching messages for user ID: ${otherUserId}`);
     setLoading(true);
     try {
       const res = await fetch(
-        `http://192.168.1.161:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
+        `http://`+ipAddress+`:5263/api/Message/ByUser?userId=${otherUserId}&pageNumber=1&pageSize=50`,
         {
-          headers: {
+          headers:
+           {
             Accept: 'text/plain',
             Authorization: `Bearer ${token}`,
           },
         }
       );
+      console.log(`[ChatScreen] Response status for messages: ${res.status}`);
       const text = await res.text();
+      console.log(`[ChatScreen] Messages response body: ${text}`);
       const json = JSON.parse(text || '[]');
       const arr: ChatMessageDto[] = Array.isArray(json.value)
         ? json.value
@@ -130,7 +168,7 @@ const ChatScreen: React.FC = () => {
       arr.sort(
         (a, b) => new Date(a.sendDate).getTime() - new Date(b.sendDate).getTime()
       );
-      arr.forEach((m) => {
+      for (const m of arr) {
         const label = formatDay(m.sendDate);
         if (currLabel && label !== currLabel) {
           grouped.push({ type: 'separator', label: currLabel });
@@ -138,22 +176,26 @@ const ChatScreen: React.FC = () => {
           dayMsgs = [];
         }
         currLabel = label;
+
+        const reactions = await fetchReactions(m.id); // Fetch reactions for the message
         dayMsgs.push({
           type: 'message',
           id: m.id,
           text: m.content,
           time: formatTime(m.sendDate),
           isSender: m.senderId === myUserId,
-          senderId: m.senderId, // Use senderId instead of avatar
+          senderId: m.senderId,
           parentId: m.parentId,
+          reactions, // Include reactions
         });
-      });
+      }
       if (dayMsgs.length && currLabel) {
         grouped.push({ type: 'separator', label: currLabel });
         grouped.push(...dayMsgs);
       }
       setMessages(grouped);
     } catch (e: any) {
+      console.error('[ChatScreen] Error fetching messages:', e);
       Alert.alert('Erreur', e.message);
     } finally {
       setLoading(false);
@@ -173,8 +215,9 @@ const ChatScreen: React.FC = () => {
 
   // 4) Gestion du WebSocket (ajout handleUpdate, handleDelete éventuellement)
   const handleReceive = useCallback(
-    (m: ChatMessageDto) => {
+    async (m: ChatMessageDto) => {
       if (m.senderId === otherUserId) {
+        const reactions = await fetchReactions(m.id); // Fetch reactions for the new message
         setMessages((prev) => [
           ...prev,
           {
@@ -183,8 +226,9 @@ const ChatScreen: React.FC = () => {
             text: m.content,
             time: formatTime(m.sendDate),
             isSender: false,
-            senderId: m.senderId, // Use senderId instead of avatar
+            senderId: m.senderId,
             parentId: m.parentId,
+            reactions, // Include reactions
           },
         ]);
       }
@@ -231,9 +275,10 @@ const ChatScreen: React.FC = () => {
 
   // 6) Supprimer un message (même code qu’avant)
   const deleteMessage = async (msgId: number) => {
+    console.log(`[ChatScreen] Deleting message ID: ${msgId}`);
     try {
       const res = await fetch(
-        `http://192.168.1.161:5263/api/Message/${msgId}`,
+        `http://`+ipAddress+`:5263/api/Message/${msgId}`,
         {
           method: 'DELETE',
           headers: {
@@ -241,6 +286,7 @@ const ChatScreen: React.FC = () => {
           },
         }
       );
+      console.log(`[ChatScreen] Response status for delete: ${res.status}`);
       if (res.ok) {
         setMessages((prev) =>
           prev.filter((m) => !(m.type === 'message' && m.id === msgId))
@@ -252,6 +298,7 @@ const ChatScreen: React.FC = () => {
         );
       }
     } catch (e: any) {
+      console.error('[ChatScreen] Error deleting message:', e);
       Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
     }
   };
@@ -260,9 +307,10 @@ const ChatScreen: React.FC = () => {
   const saveEditedMessage = async (newText: string) => {
     if (!editing) return;
     const msgId = editing.id;
+    console.log(`[ChatScreen] Saving edited message ID: ${msgId} with new text: ${newText}`);
     try {
       const res = await fetch(
-        `http://192.168.1.161:5263/api/Message/${msgId}`,
+        `http://`+ipAddress+`:5263/api/Message/${msgId}`,
         {
           method: 'PATCH',
           headers: {
@@ -272,6 +320,7 @@ const ChatScreen: React.FC = () => {
           body: JSON.stringify({ content: newText }),
         }
       );
+      console.log(`[ChatScreen] Response status for edit: ${res.status}`);
       if (res.ok) {
         setMessages((prev) =>
           prev.map((m) => {
@@ -289,6 +338,7 @@ const ChatScreen: React.FC = () => {
         );
       }
     } catch (e: any) {
+      console.error('[ChatScreen] Error saving edited message:', e);
       Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
     }
   };
@@ -297,6 +347,7 @@ const ChatScreen: React.FC = () => {
   const handleSend = async (text: string, parentId: number | null) => {
     if (editing) return;
 
+    console.log(`[ChatScreen] Sending message: ${text} with parent ID: ${parentId}`);
     try {
       const body: {
         content: string;
@@ -311,7 +362,7 @@ const ChatScreen: React.FC = () => {
       }
 
       const res = await fetch(
-        'http://192.168.1.161:5263/api/Message/PostForUser',
+        'http://'+ipAddress+':5263/api/Message/PostForUser',
         {
           method: 'POST',
           headers: {
@@ -321,16 +372,10 @@ const ChatScreen: React.FC = () => {
           body: JSON.stringify(body),
         }
       );
-
+      console.log(`[ChatScreen] Response status for send: ${res.status}`);
+      const returned = await res.json();
+      console.log(`[ChatScreen] Sent message response body: ${JSON.stringify(returned)}`);
       if (res.ok) {
-        const returned: {
-          id: number;
-          content: string;
-          sendDate: string;
-          senderId: number;
-          parentId: number;
-        } = await res.json();
-
         setMessages((prev) => [
           ...prev,
           {
@@ -339,7 +384,7 @@ const ChatScreen: React.FC = () => {
             text: returned.content,
             time: formatTime(returned.sendDate),
             isSender: true,
-            senderId: myUserId!, // Add senderId for sent messages
+            senderId: myUserId!,
             parentId: returned.parentId,
           },
         ]);
@@ -348,6 +393,7 @@ const ChatScreen: React.FC = () => {
         Alert.alert('Erreur serveur', `Statut ${res.status}`);
       }
     } catch (e: any) {
+      console.error('[ChatScreen] Error sending message:', e);
       Alert.alert('Erreur envoi', e.message || 'Une erreur est survenue.');
     }
   };
@@ -401,7 +447,7 @@ const ChatScreen: React.FC = () => {
 
     try {
       const up = await fetch(
-        `http://192.168.1.161:5263/api/Attachment?attachmentType=ProfilePicture`,
+        `http://`+ipAddress+`:5263/api/Attachment?attachmentType=ProfilePicture`,
         {
           method: 'POST',
           headers:
@@ -425,7 +471,7 @@ const ChatScreen: React.FC = () => {
     if (replyTo) body.parentId = replyTo.id;
     try {
       const res = await fetch(
-        'http://192.168.1.161:5263/api/Message/PostForUser',
+        'http://'+ipAddress+':5263/api/Message/PostForUser',
         {
           method: 'POST',
           headers: {
@@ -475,9 +521,10 @@ const ChatScreen: React.FC = () => {
       return;
     }
     setSearchLoading(true);
+    console.log(`[ChatScreen] Searching messages for text: ${text} in user ID: ${otherUserId}`);
     try {
       const res = await fetch(
-        `http://192.168.1.161:5263/api/Message/SearchInUser?userId=${otherUserId}&query=${encodeURIComponent(text)}`,
+        `http://`+ipAddress+`:5263/api/Message/SearchInUser?userId=${otherUserId}&search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`,
         {
           headers: {
             Accept: 'application/json',
@@ -485,16 +532,26 @@ const ChatScreen: React.FC = () => {
           },
         }
       );
+      console.log(`[ChatScreen] Response status for search: ${res.status}`);
       const body = await res.text();
       if (!res.ok) {
-        // Ne rien afficher si erreur (pas d'Alert)
         setSearchResults([]);
         return;
       }
       const data = JSON.parse(body);
-      setSearchResults(Array.isArray(data) ? data : data.value || []);
+      const formattedResults = Array.isArray(data)
+        ? data.map((msg) => ({
+            id: msg.id,
+            content: msg.content,
+            sendDate: msg.sendDate,
+            senderId: msg.senderId,
+            parentId: msg.parentId,
+            attachments: msg.messageAttachments?.map((att: { attachment: { name: string } }) => att.attachment?.name) || [], // Define type for att
+          }))
+        : [];
+      setSearchResults(formattedResults);
     } catch (e: any) {
-      // Ne rien afficher si erreur
+      console.error('[ChatScreen] Error during search:', e);
       setSearchResults([]);
     } finally {
       setSearchLoading(false);
@@ -513,6 +570,60 @@ const ChatScreen: React.FC = () => {
     setShowSearch(false);
     setSearchText('');
     setSearchResults([]);
+  };
+
+  // Update the reaction handling
+  const onAddReactionFromDrawer = (emoji: any) => {
+    console.log('[ChatScreen] onAddReactionFromDrawer called with emoji:', emoji);
+    if (drawerMessage) {
+      console.log('[ChatScreen] drawerMessage:', drawerMessage);
+      try {
+        const sendReaction = async (messageId: number, emoji: string) => {
+          console.log('[ChatScreen] Sending reaction:', { messageId, emoji });
+          const url = `http://`+ipAddress+`:5263/api/Message/${messageId}/Reactions`;
+          const body = JSON.stringify({ content: emoji });
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body,
+          });
+          const responseText = await res.text();
+          console.log('[ChatScreen] Response status:', res.status);
+          console.log('[ChatScreen] Response body:', responseText);
+          if (!res.ok) throw new Error(`Failed to add reaction (${res.status})`);
+          return JSON.parse(responseText);
+        };
+
+        sendReaction(drawerMessage.id, emoji.emoji).then(reactionData => {
+          console.log('[ChatScreen] Reaction sent successfully:', reactionData);
+          setMessages(prev => {
+            console.log('[ChatScreen] Updating messages with new reaction');
+            return prev.map(m => {
+              if (m.type === 'message' && m.id === drawerMessage.id) {
+                console.log('[ChatScreen] Adding reaction to message:', m.id);
+                const updatedMessage = {
+                  ...m,
+                  reactions: [...(m.reactions || []), reactionData],
+                };
+                console.log('[ChatScreen] Updated message:', updatedMessage);
+                return updatedMessage;
+              }
+              return m;
+            });
+          });
+        });
+      } catch (e: any) {
+        console.error('[ChatScreen] Error in onAddReactionFromDrawer:', e);
+        Alert.alert('Erreur', e.message || 'Une erreur est survenue.');
+      }
+      setDrawerVisible(false);
+      setShowEmojiPicker(false);
+    } else {
+      console.log('[ChatScreen] No drawerMessage found');
+    }
   };
 
   return (
@@ -591,6 +702,7 @@ const ChatScreen: React.FC = () => {
                     return (
                       <MessageBubble
                         key={msg.id}
+                        id={msg.id} // Ensure the id is passed
                         text={msg.text}
                         time={msg.time}
                         isSender={msg.isSender}
@@ -598,6 +710,7 @@ const ChatScreen: React.FC = () => {
                         parentId={msg.parentId}
                         parentText={parentText}
                         attachments={msg.attachments}
+                        reactions={msg.reactions} // Pass reactions to MessageBubble
                         onLongPress={() =>
                           onMessageLongPress(msg.id, msg.text, msg.isSender)
                         }
@@ -619,61 +732,23 @@ const ChatScreen: React.FC = () => {
             onCancelEdit={() => setEditing(null)}
           />
 
-          {/* Drawer (Modal) */}
-          <Modal
+          {/* Remplacer l'ancien Drawer Modal par celui-ci */}
+          <MessageActionsModal
             visible={drawerVisible}
-            animationType="slide"
-            transparent
-            onRequestClose={onCancelFromDrawer}
-          >
-            {/* Overlay semi-transparent */}
-            <TouchableOpacity
-              style={styles.modalOverlay}
-              activeOpacity={1}
-              onPress={onCancelFromDrawer}
-            />
-            <View style={styles.drawerContainer}>
-              <Text style={styles.drawerTitle}>Que voulez-vous faire ?</Text>
+            onClose={onCancelFromDrawer}
+            onReply={onReplyFromDrawer}
+            onEdit={onEditFromDrawer}
+            onDelete={onDeleteFromDrawer}
+            onReaction={() => setShowEmojiPicker(true)}
+            showEditDelete={drawerMessage?.isSender}
+          />
 
-              {/* Toujours possible de répondre */}
-              <TouchableOpacity
-                style={styles.drawerButton}
-                onPress={onReplyFromDrawer}
-              >
-                <Text style={styles.drawerButtonText}>Répondre</Text>
-              </TouchableOpacity>
-
-              {/* Affiché seulement si c’est VOTRE message */}
-              {drawerMessage?.isSender && (
-                <>
-                  <TouchableOpacity
-                    style={styles.drawerButton}
-                    onPress={onEditFromDrawer}
-                  >
-                    <Text style={styles.drawerButtonText}>Modifier</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.drawerButton, styles.deleteButton]}
-                    onPress={onDeleteFromDrawer}
-                  >
-                    <Text
-                      style={[styles.drawerButtonText, styles.deleteText]}
-                    >
-                      Supprimer
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
-              {/* Annuler (toujours possible) */}
-              <TouchableOpacity
-                style={styles.drawerButton}
-                onPress={onCancelFromDrawer}
-              >
-                <Text style={styles.drawerButtonText}>Annuler</Text>
-              </TouchableOpacity>
-            </View>
-          </Modal>
+          {/* Emoji Picker */}
+          <EmojiPicker
+            onEmojiSelected={onAddReactionFromDrawer}
+            open={showEmojiPicker}
+            onClose={() => setShowEmojiPicker(false)}
+          />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -697,44 +772,6 @@ const styles = StyleSheet.create({
     color: '#888',
   },
   line: { flex: 1, height: 1, backgroundColor: '#444', opacity: 0.5 },
-
-  // Overlay semi-transparente derrière le drawer
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  // Conteneur du drawer (au bas de l'écran)
-  drawerContainer: {
-    backgroundColor: '#fff',
-    paddingTop: 12,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  drawerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  drawerButton: {
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-  },
-  drawerButtonText: {
-    fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
-  },
-  deleteButton: {
-    borderColor: '#eee',
-  },
-  deleteText: {
-    color: '#E53935',
-    fontWeight: '600',
-  },
 });
 
 export default ChatScreen;

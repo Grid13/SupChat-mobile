@@ -16,7 +16,7 @@ export function useMessageSender(senderId: number | undefined, token: string | n
 
     const fetchUser = async () => {
       try {
-        const res = await fetch(`http://192.168.1.161:5263/api/User/${senderId}`, {
+        const res = await fetch(`http://`+ipAddress+`:5263/api/User/${senderId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -32,7 +32,7 @@ export function useMessageSender(senderId: number | undefined, token: string | n
   // Use the profile image hook for protected attachments
   const profileImage = useProfileImage(
     userData?.profilePictureId 
-      ? `http://192.168.1.161:5263/api/Attachment/${userData.profilePictureId}`
+      ? `http://`+ipAddress+`:5263/api/Attachment/${userData.profilePictureId}`
       : undefined,
     token || ''
   );

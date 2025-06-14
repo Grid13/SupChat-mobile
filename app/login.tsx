@@ -15,14 +15,16 @@ import { useDispatch } from "react-redux";
 import { loginSuccess } from "./store/authSlice";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
+import dotenv from 'dotenv';
 
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 WebBrowser.maybeCompleteAuthSession();
 
 const Login = () => {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const [email, setEmail] = useState("jb@email.com");
+  const [email, setEmail] = useState("admin@supchat.com");
   const [password, setPassword] = useState("Soleil123!");
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -40,8 +42,8 @@ const Login = () => {
       formBody.append("email", email);
       formBody.append("password", password);
       formBody.append("grant_type", "password");
-
-      const response = await fetch("http://192.168.1.161:5263/api/Authorization/login", {
+      console.log("IP Address:", ipAddress);
+      const response = await fetch("http://"+ipAddress+":5263/api/Authorization/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -73,7 +75,7 @@ const Login = () => {
   const handleGitHubRedirectLogin = async () => {
     try {
       const redirectUri = Linking.createURL("ChatList");
-      const loginUrl = `http://192.168.1.161:5263/api/Authorization/login/github?returnUrl=${encodeURIComponent(
+      const loginUrl = `http://`+ipAddress+`:5263/api/Authorization/login/github?returnUrl=${encodeURIComponent(
         redirectUri
       )}`;
 
