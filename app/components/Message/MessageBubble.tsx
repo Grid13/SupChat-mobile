@@ -1,5 +1,5 @@
 // MessageBubble.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
@@ -43,8 +43,41 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onAddReaction,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const token = useSelector((state: RootState) => state.auth.token);
+  const token = useSelector((state: RootState) => state.auth.token) || ''; // Ensure token is retrieved from the store
   const { avatarUrl } = useMessageSender(senderId, token);
+
+  const [attachmentBase64, setAttachmentBase64] = useState<Record<string, string | null>>({});
+
+  useEffect(() => {
+    const fetchAttachments = async () => {
+      if (attachments && attachments.length > 0) {
+        const updatedBase64: Record<string, string | null> = {};
+        for (const uri of attachments) {
+          try {
+            const res = await fetch(uri, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const blob = await res.blob();
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                updatedBase64[uri] = reader.result as string;
+                setAttachmentBase64((prev) => ({ ...prev, ...updatedBase64 }));
+              };
+              reader.readAsDataURL(blob);
+            } else {
+              updatedBase64[uri] = null;
+              setAttachmentBase64((prev) => ({ ...prev, ...updatedBase64 }));
+            }
+          } catch (e) {
+            updatedBase64[uri] = null;
+            setAttachmentBase64((prev) => ({ ...prev, ...updatedBase64 }));
+          }
+        }
+      }
+    };
+    fetchAttachments();
+  }, [attachments, token]);
 
   return (
     <TouchableOpacity
@@ -90,14 +123,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
           {attachments && attachments.length > 0 && (
             <View style={styles.attachmentsContainer}>
-              {attachments.map((uri, idx) => (
-                <Image
-                  key={idx}
-                  source={{ uri }}
-                  style={styles.attachmentImage}
-                  resizeMode="cover"
-                />
-              ))}
+              {attachments.map((uri, idx) => {
+                const base64Uri = attachmentBase64[uri];
+                return (
+                  <Image
+                    key={idx}
+                    source={{ uri: base64Uri || uri }}
+                    style={styles.attachmentImage}
+                    resizeMode="cover"
+                  />
+                );
+              })}
             </View>
           )}
           {/* Reactions styled like Discord/Slack, bottom left of bubble */}
@@ -109,7 +145,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   acc[r.content].count += 1;
                   if (r.senderId === senderId) acc[r.content].mine = true;
                   return acc;
-                }, {} as Record<string, { count: number; mine: boolean }>)
+                }, {} as Record<string, { count: number; mine: boolean }>),
               ).map(([emoji, { count, mine }]) => (
                 <View
                   key={emoji}

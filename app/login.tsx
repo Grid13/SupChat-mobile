@@ -43,7 +43,7 @@ const Login = () => {
       formBody.append("password", password);
       formBody.append("grant_type", "password");
       console.log("IP Address:", ipAddress);
-      const response = await fetch(`http://${ipAddress}:5263/api/Authorization/login`, {
+      const response = await fetch(`http://${ipAddress}:5263/api/Authorization/Login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -117,7 +117,7 @@ const Login = () => {
           <TouchableOpacity style={styles.switchButton}>
             <Text style={styles.activeSwitchText}>Sign In</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.switchButton} onPress={() => router.push("/register")}>
+          <TouchableOpacity style={styles.switchButton} onPress={() => router.push("/Register")}>
             <Text style={styles.switchText}>Sign Up</Text>
           </TouchableOpacity>
         </View>

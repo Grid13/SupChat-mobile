@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -52,6 +53,10 @@ const WorkspaceDrawer: React.FC<Props> = ({
   onChannelCreated,
 }) => {
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [addModalVisible, setAddModalVisible] = useState(false); // State for "+" modal
+  const [selectedChannelForAdd, setSelectedChannelForAdd] = useState<Channel | null>(null); // State for selected channel
+  const [notMembers, setNotMembers] = useState<any[]>([]); // State for users not in the channel
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([]); // State for selected users
   const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token); // Retrieve token from Redux store
 
@@ -78,6 +83,60 @@ const WorkspaceDrawer: React.FC<Props> = ({
     } catch (e: any) {
       Alert.alert("Error", e.message || "An error occurred.");
     }
+  };
+
+  const fetchNotMembers = async (channelId: number) => {
+    try {
+      const res = await fetch(
+        `http://${ipAddress}:5263/api/Channel/${channelId}/NotMember?pageNumber=1&pageSize=10`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setNotMembers(data);
+      } else {
+        Alert.alert("Error", `Failed to fetch users (status ${res.status}).`);
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "An error occurred.");
+    }
+  };
+
+  const addMembersToChannel = async (channelId: number, userIds: number[]) => {
+    try {
+      const res = await fetch(
+        `http://${ipAddress}:5263/api/Channel/${channelId}/AddMembers`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ userIdList: userIds }),
+        }
+      );
+      if (res.ok) {
+        Alert.alert("Success", "Users added successfully.");
+        setAddModalVisible(false);
+        onChannelCreated?.(); // Refresh the channel list
+      } else {
+        Alert.alert("Error", `Failed to add users (status ${res.status}).`);
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "An error occurred.");
+    }
+  };
+
+  const openAddModal = (channel: Channel) => {
+    setSelectedChannelForAdd(channel);
+    fetchNotMembers(channel.id); // Fetch users not in the channel
+    setAddModalVisible(true);
   };
 
   console.log(`Using IP Address: ${ipAddress}`);
@@ -151,25 +210,35 @@ const WorkspaceDrawer: React.FC<Props> = ({
                     </View>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteIcon}
-                  onPress={() =>
-                    Alert.alert(
-                      "Delete Channel",
-                      `Are you sure you want to delete the channel "${ch.name}"?`,
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Delete",
-                          style: "destructive",
-                          onPress: () => deleteChannel(ch.id),
-                        },
-                      ]
-                    )
-                  }
-                >
-                  <Ionicons name="trash-outline" size={20} color="#E53935" />
-                </TouchableOpacity>
+                <View style={styles.actionIcons}>
+                  {ch.visibility === "Private" && (
+                    <TouchableOpacity
+                      style={styles.lockIcon}
+                      onPress={() => openAddModal(ch)} // Open modal instead of drawer
+                    >
+                      <Ionicons name="lock-closed-outline" size={20} color="#4F8CFF" />
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={styles.deleteIcon}
+                    onPress={() =>
+                      Alert.alert(
+                        "Delete Channel",
+                        `Are you sure you want to delete the channel "${ch.name}"?`,
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete",
+                            style: "destructive",
+                            onPress: () => deleteChannel(ch.id),
+                          },
+                        ]
+                      )
+                    }
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#E53935" />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))
           )}
@@ -183,6 +252,64 @@ const WorkspaceDrawer: React.FC<Props> = ({
             <Text style={styles.addChannelText}>Add Channel</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Add Modal */}
+        {addModalVisible && (
+          <Modal
+            visible={addModalVisible}
+            onRequestClose={() => setAddModalVisible(false)}
+            animationType="fade"
+            transparent={true}
+          >
+            <View style={styles.centeredModalOverlay}>
+              <View style={styles.centeredModal}>
+                <Text style={styles.modalTitle}>
+                  Add to Channel: {selectedChannelForAdd?.name}
+                </Text>
+                <ScrollView style={{ flex: 1, width: "100%" }}>
+                  {notMembers.map((user) => (
+                    <TouchableOpacity
+                      key={user.id}
+                      style={[
+                        styles.userRow,
+                        selectedUsers.includes(user.id) && styles.selectedUserRow,
+                      ]}
+                      onPress={() => {
+                        setSelectedUsers((prev) =>
+                          prev.includes(user.id)
+                            ? prev.filter((id) => id !== user.id)
+                            : [...prev, user.id]
+                        );
+                      }}
+                    >
+                      <Image
+                        source={{
+                          uri: `http://${ipAddress}:5263/api/File/${user.profilePictureId}`,
+                        }}
+                        style={styles.userAvatar}
+                      />
+                      <Text style={styles.userName}>{user.username}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                <TouchableOpacity
+                  style={styles.addUsersBtn}
+                  onPress={() =>
+                    addMembersToChannel(selectedChannelForAdd?.id!, selectedUsers)
+                  }
+                >
+                  <Text style={styles.addUsersText}>Add Selected Users</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.closeModalBtn}
+                  onPress={() => setAddModalVisible(false)}
+                >
+                  <Text style={styles.closeModalText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )}
 
         <CreateChannelModal
           visible={createModalVisible}
@@ -316,7 +443,90 @@ const styles = StyleSheet.create({
   closeArea: {
     flex: 1,
   },
+  lockIcon: {
+    padding: 8,
+  },
   deleteIcon: {
     padding: 8,
+  },
+  actionIcons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  addIcon: {
+    padding: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#fff",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  closeModalBtn: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: "#4F8CFF",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  closeModalText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  centeredModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent background
+  },
+  centeredModal: {
+    width: 250,
+    height: 250,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  userRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+  selectedUserRow: {
+    backgroundColor: "#e7f1ff",
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  userName: {
+    fontSize: 16,
+    color: "#333",
+  },
+  addUsersBtn: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: "#4F8CFF",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  addUsersText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
 });

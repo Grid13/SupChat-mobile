@@ -23,8 +23,6 @@ const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 
 
-console.log(`Using IP Address: +ipAddress+`);
-
 const ChatList: React.FC = () => {
   const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token);
@@ -161,7 +159,6 @@ const ChatList: React.FC = () => {
 
   const createBot = async (name: string) => {
     try {
-      console.log('Creating bot with name:', name);
       const res = await fetch('http://'+ipAddress+':5263/api/Bot', {
         method: 'POST',
         headers: {
@@ -174,14 +171,9 @@ const ChatList: React.FC = () => {
         })
       });
 
-      console.log('Bot creation response status:', res.status);
-      const responseText = await res.text();
-      console.log('Bot creation response:', responseText);
-
-      if (!res.ok) throw new Error(`Failed to create bot: ${res.status} - ${responseText}`);
+      if (!res.ok) throw new Error(`Failed to create bot: ${res.status}`);
       
-      const bot = JSON.parse(responseText);
-      console.log('Parsed bot data:', bot);
+      const bot = await res.json();
       
       handlePress({
         id: bot.userId,
@@ -195,7 +187,6 @@ const ChatList: React.FC = () => {
       fetchUsers();
       
     } catch (err: any) {
-      console.error('Bot creation error:', err);
       Alert.alert('Error', err.message || 'Failed to create bot');
     }
   };

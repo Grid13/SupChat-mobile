@@ -12,6 +12,7 @@ import {
   Switch,
   Alert,
   TextInput,
+  Modal,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "./store/store";
@@ -38,6 +39,13 @@ const SettingsScreen = () => {
   const [uploading, setUploading] = useState(false);
   const [profileImageBase64, setProfileImageBase64] = useState<string | null>(null);
   const [ownedBots, setOwnedBots] = useState<any[]>([]);
+  const [botNameModalVisible, setBotNameModalVisible] = useState(false);
+  const [botName, setBotName] = useState('');
+  const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
+  const [editedFirstName, setEditedFirstName] = useState(profile?.firstName || "");
+  const [editedLastName, setEditedLastName] = useState(profile?.lastName || "");
+  const [editedUsername, setEditedUsername] = useState(profile?.applicationUser?.username || "");
+  const [editedLanguage, setEditedLanguage] = useState(profile?.language || "English");
 
   const fetchProfile = async () => {
     if (!token) return;
@@ -280,6 +288,56 @@ const SettingsScreen = () => {
     }
   };
 
+  const createBot = async (name: string) => {
+    if (!token) return;
+    try {
+      const response = await fetch(`http://${ipAddress}:5263/api/Bot`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      Alert.alert("Success", "Bot created successfully");
+      setBotNameModalVisible(false);
+      setBotName('');
+      fetchOwnedBots(); // Refresh the list of owned bots
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Unable to create bot");
+    }
+  };
+
+  const handleEditProfile = async () => {
+    if (!token) return;
+    const userId = profile?.applicationUser?.id;
+    if (!userId) {
+      return Alert.alert("Error", "User ID not found");
+    }
+    try {
+      const response = await fetch(`http://${ipAddress}:5263/api/User/${userId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          firstName: editedFirstName,
+          lastName: editedLastName,
+          username: editedUsername,
+          language: editedLanguage,
+        }),
+      });
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      Alert.alert("Success", "Profile updated successfully");
+      setEditProfileModalVisible(false);
+      fetchProfile(); // Refresh profile data
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Unable to update profile");
+    }
+  };
+
   useEffect(() => {
     fetchOwnedBots();
   }, [token]);
@@ -323,6 +381,53 @@ const SettingsScreen = () => {
           </View>
         </View>
       )}
+      {editProfileModalVisible && (
+        <Modal visible={editProfileModalVisible} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.botNameModal}>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <TextInput
+                style={styles.botNameInput}
+                value={editedFirstName}
+                onChangeText={setEditedFirstName}
+                placeholder="First Name"
+              />
+              <TextInput
+                style={styles.botNameInput}
+                value={editedLastName}
+                onChangeText={setEditedLastName}
+                placeholder="Last Name"
+              />
+              <TextInput
+                style={styles.botNameInput}
+                value={editedUsername}
+                onChangeText={setEditedUsername}
+                placeholder="Username"
+              />
+              <TextInput
+                style={styles.botNameInput}
+                value={editedLanguage}
+                onChangeText={setEditedLanguage}
+                placeholder="Language"
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setEditProfileModalVisible(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.createButton]}
+                  onPress={handleEditProfile}
+                >
+                  <Text style={styles.createButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
       <ScrollView contentContainerStyle={styles.container}>
         {/* PROFILE CARD */}
         <View style={styles.card}>
@@ -359,6 +464,18 @@ const SettingsScreen = () => {
           {renderRow("Lastname", profile?.lastName)}
           {renderRow("Phone", profile?.phone)}
           {renderRow("Language", profile?.language)}
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => {
+              setEditedFirstName(profile?.firstName || "");
+              setEditedLastName(profile?.lastName || "");
+              setEditedUsername(profile?.applicationUser?.username || "");
+              setEditedLanguage(profile?.language || "English");
+              setEditProfileModalVisible(true);
+            }}
+          >
+            <Text style={styles.editText}>✏️ Edit Profile</Text>
+          </TouchableOpacity>
         </View>
 
         {/* CUSTOM INFO */}
@@ -402,6 +519,12 @@ const SettingsScreen = () => {
         {/* BOT SECTION */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Owned Bots</Text>
+          <TouchableOpacity 
+            style={[styles.primaryButton, { marginBottom: 10 }]} 
+            onPress={() => setBotNameModalVisible(true)}
+          >
+            <Text style={styles.primaryButtonText}>🤖 Add Bot</Text>
+          </TouchableOpacity>
           {ownedBots.length > 0 ? (
             ownedBots.map((bot) => (
               <View key={bot.id} style={styles.row}>
@@ -429,6 +552,44 @@ const SettingsScreen = () => {
             <Text style={styles.value}>No bots found</Text>
           )}
         </View>
+        {/* Bot name modal */}
+        {botNameModalVisible && (
+          <Modal visible={botNameModalVisible} transparent animationType="fade">
+            <View style={styles.modalOverlay}>
+              <View style={styles.botNameModal}>
+                <Text style={styles.modalTitle}>Name your bot</Text>
+                <TextInput
+                  style={styles.botNameInput}
+                  value={botName}
+                  onChangeText={setBotName}
+                  placeholder="Enter bot name"
+                  autoFocus
+                />
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity 
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={() => {
+                      setBotNameModalVisible(false);
+                      setBotName('');
+                    }}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.modalButton, styles.createButton]}
+                    onPress={() => {
+                      if (botName.trim()) {
+                        createBot(botName.trim());
+                      }
+                    }}
+                  >
+                    <Text style={styles.createButtonText}>Create</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
 
         {/* ACTIONS */}
         <View style={styles.actions}>
@@ -436,7 +597,7 @@ const SettingsScreen = () => {
             style={styles.logoutBtn}
             onPress={() => {
               dispatch(logout());
-              router.replace("/login");
+              router.replace("/Login");
             }}
           >
             <Text style={styles.logoutText}>Log Out ↩️</Text>
@@ -473,7 +634,7 @@ const SettingsScreen = () => {
                 );
                 if (!response.ok) throw new Error(`Error ${response.status}`);
                 dispatch(logout());
-                router.replace("/login");
+                router.replace("/Login");
               } catch (err) {
                 const message = err instanceof Error ? err.message : "Failed to delete account";
                 Alert.alert("Error", message);
@@ -673,5 +834,56 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     tintColor: '#e74c3c', // red color for delete icon
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  botNameModal: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: '80%',
+    maxWidth: 400,
+    elevation: 6,
+    alignItems: 'center',
+  },
+  botNameInput: {
+    height: 50,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 15,
+    width: "100%",
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 8,
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#e74c3c',
+  },
+  createButton: {
+    backgroundColor: '#6B8AFD',
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  createButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });

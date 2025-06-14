@@ -35,8 +35,6 @@ import dotenv from 'dotenv';
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 
-console.log(`Using IP Address: +ipAddress+`);
-
 // MessageItem type for WorkspaceChat
 // Copied from ChatScreen.tsx and adapted for channel messages
 
@@ -219,19 +217,25 @@ const WorkspaceChat: React.FC = () => {
         arr = arr.slice().reverse();
 
         // Fetch reactions for each message
-        const messagesWithReactions = await Promise.all(
+        const messagesWithAttachments = await Promise.all(
           arr.map(async (msg) => {
-            let reactions = [];
-            try {
-              const rRes = await fetch(`http://${ipAddress}:5263/api/Message/${msg.id}/Reactions`, {
-                headers: { Accept: "text/plain", Authorization: `Bearer ${token}` },
-              });
-              if (rRes.ok) {
-                const rText = await rRes.text();
-                try { reactions = JSON.parse(rText); } catch {}
-              }
-            } catch {}
-            // Fix: set type as literal 'message'
+            const attachments = await Promise.all(
+              (msg.messageAttachments || []).map(async (attachment: { attachmentId: string }) => {
+                const attachmentRes = await fetch(`http://${ipAddress}:5263/api/Attachment/${attachment.attachmentId}`, {
+                  headers: {
+                    Accept: '*/*',
+                    Authorization: `Bearer ${token}`,
+                  },
+                });
+                if (attachmentRes.ok) {
+                  return attachmentRes.url; // Use the direct URL for the attachment
+                }
+                return null;
+              })
+            );
+
+            const reactions = await fetchReactions(msg.id);
+
             return {
               type: 'message' as const,
               id: msg.id,
@@ -240,7 +244,7 @@ const WorkspaceChat: React.FC = () => {
               isSender: msg.senderId === userId,
               senderId: msg.senderId,
               parentId: msg.parentId,
-              attachments: msg.attachments,
+              attachments: attachments.filter((url): url is string => url !== null),
               reactions: reactions || [],
             };
           })
@@ -249,7 +253,7 @@ const WorkspaceChat: React.FC = () => {
         // Formatage date/heure et groupement par jour
         const formatted: MessageItem[] = [];
         let currentDay: string | null = null;
-        messagesWithReactions.forEach(msg => {
+        messagesWithAttachments.forEach(msg => {
           const day = format(new Date(arr.find(m => m.id === msg.id)?.sendDate), "d MMMM yyyy", { locale: fr });
           if (day !== currentDay) {
             formatted.push({ type: "separator", label: day });
@@ -300,9 +304,11 @@ const WorkspaceChat: React.FC = () => {
     const formData = new FormData();
     formData.append('file', { uri, name, type } as any);
 
+    console.log('[WorkspaceChat] Uploading image:', { uri, name, type });
+
     try {
       const up = await fetch(
-        `http://${ipAddress}:5263/api/Attachment?attachmentType=ChannelMessage`,
+        `http://${ipAddress}:5263/api/Attachment?attachmentType=Image`,
         {
           method: "POST",
           headers: {
@@ -312,10 +318,14 @@ const WorkspaceChat: React.FC = () => {
           body: formData,
         }
       );
+      const responseText = await up.text();
+      console.log('[WorkspaceChat] Upload response:', { status: up.status, responseText });
+
       if (!up.ok) throw new Error(`Upload failed ${up.status}`);
-      const { id: attachmentId } = await up.json();
+      const { id: attachmentId } = JSON.parse(responseText);
       await sendImageMessage([attachmentId], [uri]);
     } catch (e: any) {
+      console.error('[WorkspaceChat] Upload error:', e);
       Alert.alert("Erreur", e.message);
     }
   };
@@ -343,7 +353,17 @@ const WorkspaceChat: React.FC = () => {
       );
       if (res.ok) {
         const msg = await res.json();
-        // L'affichage du message sera géré par le SignalR (handleReceiveSocket)
+        const newMessage: MessageItem = {
+          type: 'message',
+          id: msg.id,
+          text: msg.content,
+          time: `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(msg.sendDate).getMinutes().toString().padStart(2, '0')}`,
+          isSender: true,
+          senderId: userId!,
+          parentId: msg.parentId,
+          attachments: uris,
+        };
+        setMessages((prev) => [...prev, newMessage]);
         setReplyTo(null);
       } else {
         throw new Error(`Status ${res.status}`);
@@ -466,13 +486,21 @@ const WorkspaceChat: React.FC = () => {
   const handleReceiveSocket = useCallback(
     (msg: any) => {
       if (!selectedChannel || msg.channelId !== selectedChannel.id) return;
-      const day = format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr });
-      const time = `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(
-        msg.sendDate
-      ).getMinutes().toString().padStart(2, '0')}`;
-      setMessages(prev => {
+
+      // Prevent duplicate messages by checking if the message already exists
+      setMessages((prev) => {
+        if (prev.some((m) => m.type === "message" && m.id === msg.id)) {
+          console.log(`[WorkspaceChat] Duplicate message ignored: ${msg.id}`);
+          return prev;
+        }
+
+        const day = format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr });
+        const time = `${new Date(msg.sendDate).getHours().toString().padStart(2, '0')}h${new Date(
+          msg.sendDate
+        ).getMinutes().toString().padStart(2, '0')}`;
+
         const copy = [...prev];
-        if (!copy.find(m => m.type === "separator" && m.label === day)) {
+        if (!copy.find((m) => m.type === "separator" && m.label === day)) {
           copy.push({ type: "separator", label: day });
         }
         copy.push({
@@ -483,12 +511,12 @@ const WorkspaceChat: React.FC = () => {
           isSender: msg.senderId === userId,
           senderId: msg.senderId,
           parentId: msg.parentId,
-          attachments: msg.attachments,
+          attachments: msg.messageAttachments?.map((att: any) => att.attachmentId) || [],
         });
         return copy;
       });
     },
-    [selectedChannel, userId]  // Remove workspaceAvatar from dependencies
+    [selectedChannel, userId] // Remove workspaceAvatar from dependencies
   );
 
   // Abonnement au channel via SignalR
@@ -633,6 +661,23 @@ const WorkspaceChat: React.FC = () => {
       setShowEmojiPicker(false);
     } else {
       console.log('[WorkspaceChat] No drawerMessage found');
+    }
+  };
+
+  const fetchReactions = async (messageId: number): Promise<Array<{ id: number; content: string; messageId: number; senderId: number }>> => {
+    try {
+      const res = await fetch(`http://${ipAddress}:5263/api/Message/${messageId}/Reactions`, {
+        headers: {
+          Accept: 'text/plain',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error(`Failed to fetch reactions (${res.status})`);
+      const text = await res.text();
+      return JSON.parse(text || '[]');
+    } catch (e: any) {
+      console.error('[WorkspaceChat] Error fetching reactions:', e);
+      return [];
     }
   };
 

@@ -447,7 +447,7 @@ const ChatScreen: React.FC = () => {
 
     try {
       const up = await fetch(
-        `http://${ipAddress}:5263/api/Attachment?attachmentType=ProfilePicture`,
+        `http://${ipAddress}:5263/api/Attachment?attachmentType=Image`,
         {
           method: 'POST',
           headers:
