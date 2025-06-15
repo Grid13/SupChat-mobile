@@ -10,7 +10,7 @@ import {
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSelector } from "react-redux";
 import { RootState } from "./store/store";
@@ -98,14 +98,13 @@ const WorkspaceList: React.FC = () => {
         `http://${ipAddress}:5263/api/Workspace/Joined`,
         {
           headers: {
-            Accept: "text/plain",
+            Accept: "application/json",
             Authorization: `Bearer ${token}`,
           },
         }
       );
 
-      const text = await response.text();
-      const json = JSON.parse(text);
+      const json = await response.json();
 
       if (Array.isArray(json)) {
         const transformed: WorkspaceItem[] = json.map((ws: any) => ({
@@ -114,7 +113,8 @@ const WorkspaceList: React.FC = () => {
           subtitle: ws.description || "No description",
           color: "#6B8AFD",
           initials: ws.name?.slice(0, 2).toUpperCase() || "WS",
-          profilePictureId: ws.profilePictureId, 
+          profilePictureId: ws.profilePictureId,
+          visibility: ws.visibility, // Added visibility field
         }));
         setWorkspaces(transformed);
       } else {
@@ -134,7 +134,7 @@ const WorkspaceList: React.FC = () => {
     ws.title.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const renderItem = ({ item }: { item: WorkspaceItem & { profilePictureId?: string } }) => (
+  const renderItem = ({ item }: { item: WorkspaceItem & { profilePictureId?: string; visibility?: string } }) => (
     <TouchableOpacity
       style={styles.itemContainer}
       onPress={() =>
@@ -150,17 +150,14 @@ const WorkspaceList: React.FC = () => {
         })
       }
     >
-      {/* Use WorkspaceAvatar */}
-      <WorkspaceAvatar profilePictureId={item.profilePictureId} name={item.title} />
-      <View style={styles.itemTextContainer}>
-        <Text style={styles.itemTitle}>{item.title}</Text>
-        <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
+      <WorkspaceAvatar name={item.title} profilePictureId={item.profilePictureId} />
+      <View style={styles.workspaceContent}>
+        <Text style={styles.workspaceTitle}>{item.title}</Text>
+        <Text style={styles.workspaceSubtitle}>{item.subtitle}</Text>
       </View>
-      <TouchableOpacity
-        onPress={() => Alert.alert("Options", `Options pour ${item.title}`)}
-      >
-        <MaterialIcons name="more-vert" size={24} color="#000" />
-      </TouchableOpacity>
+      {item.visibility === "Private" && (
+        <Ionicons name="lock-closed" size={20} color="gray" style={styles.lockIcon} />
+      )}
     </TouchableOpacity>
   );
 
@@ -293,5 +290,20 @@ const styles = StyleSheet.create({
   itemSubtitle: {
     color: "#555",
     fontSize: 13,
+  },
+  workspaceContent: {
+    flex: 1,
+  },
+  workspaceTitle: {
+    color: "#000",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  workspaceSubtitle: {
+    color: "#555",
+    fontSize: 13,
+  },
+  lockIcon: {
+    marginLeft: 10,
   },
 });

@@ -8,11 +8,13 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import Icon from "react-native-vector-icons/MaterialIcons";
-import MenuIcon from "react-native-vector-icons/MaterialCommunityIcons";
+import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSelector } from "react-redux";
 import { RootState } from "../../store/store";
 import { useProfileImage } from '../../hooks/useProfileImage';
+
+const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 interface HeaderProps {
   name: string;
@@ -23,7 +25,14 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ name, avatar, onSearchPress }) => {
   const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token);
-  const avatarUri = useProfileImage(avatar, token || "") || avatar || "https://ui-avatars.com/api/?name=User";
+
+  console.log("Header props:", { name, avatar, token });
+
+  const avatarUri = avatar && avatar.startsWith(`http://${ipAddress}:5263/api/Attachment/`)
+    ? avatar
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
+
+  console.log("Avatar URI:", avatarUri);
 
   const handleSearch = () => {
     if (onSearchPress) { 
@@ -40,7 +49,7 @@ const Header: React.FC<HeaderProps> = ({ name, avatar, onSearchPress }) => {
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-        <Icon name="arrow-back" size={24} color="#007AFF" />
+        <MaterialIcons name="arrow-back" size={24} />
       </TouchableOpacity>
 
       <Image source={{ uri: avatarUri }} style={styles.avatar} />
@@ -48,10 +57,10 @@ const Header: React.FC<HeaderProps> = ({ name, avatar, onSearchPress }) => {
 
       <View style={styles.rightIcons}>
         <TouchableOpacity onPress={handleSearch} style={styles.iconButton}>
-          <Icon name="search" size={22} color="#007AFF" />
+          <MaterialIcons name="search" size={22} />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleMenu} style={styles.iconButton}>
-          <MenuIcon name="dots-vertical" size={22} color="#007AFF" />
+          <MaterialCommunityIcons name="dots-vertical" size={22} />
         </TouchableOpacity>
       </View>
     </View>

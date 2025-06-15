@@ -11,7 +11,7 @@ import {
   Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSelector } from "react-redux";
 import CreateChannelModal from "./CreateChannelModal";
 import { RootState } from "../store/store";
@@ -60,13 +60,27 @@ const WorkspaceDrawer: React.FC<Props> = ({
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]); 
   const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token); 
-  const workspaceAvatar = useProfileImage(
-    `http://${ipAddress}:5263/api/Attachment/${workspaceId}/ProfilePicture`,
-    token || ''
-  );
+  const { id, name, avatar } = useLocalSearchParams();
 
-  console.log('Workspace Avatar URL:', `http://${ipAddress}:5263/api/Attachment/${workspaceId}/ProfilePicture`);
-  console.log('Workspace Avatar:', workspaceAvatar);
+
+  
+
+   console.log("avatar:", avatar);
+  let workspaceAvatarUrl =
+        typeof avatar === "string" && avatar
+            ? avatar
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                name as string || "Workspace"
+            )}`;
+    const tokenStr = token || "";
+    const avatarBase64 = useProfileImage(
+        workspaceAvatarUrl.startsWith(`http://${ipAddress}:5263/api/Attachment/`)
+            ? workspaceAvatarUrl
+            : undefined,
+        tokenStr
+    );
+    const workspaceAvatar = avatarBase64 || workspaceAvatarUrl;
+
 
   if (!visible) return null;
 

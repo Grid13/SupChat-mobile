@@ -143,9 +143,6 @@ const WorkspaceChat: React.FC = () => {
     fetchChannels();
   }, [fetchChannels]);
 
-  const handleAvatarPress = () => {
-  };
-
   const onHandlerStateChange = ({ nativeEvent }: any) => {
     if (nativeEvent.state === State?.END) {
       if (nativeEvent.translationX > 20) setNavDrawerVisible(true);
@@ -754,7 +751,6 @@ const WorkspaceChat: React.FC = () => {
           )}
 
           <TouchableOpacity
-            onPress={handleAvatarPress}
             activeOpacity={0.7}
             style={{ padding: 5 }}
           >

@@ -134,7 +134,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               })}
             </View>
           )}
-          {/* Reactions styled like Discord/Slack, bottom left of bubble */}
           {reactions.length > 0 && (
             <View style={styles.reactionsDiscordStyle}>
               {Object.entries(

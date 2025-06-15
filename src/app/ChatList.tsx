@@ -13,10 +13,11 @@ import {
   Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Icon from "react-native-vector-icons/MaterialIcons";
-import { useRouter } from "expo-router";
+import { MaterialIcons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSelector } from "react-redux";
 import { RootState } from "./store/store";
+import { useProfileImage } from './hooks/useProfileImage';
 import dotenv from 'dotenv';
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
@@ -34,6 +35,8 @@ const ChatList: React.FC = () => {
   const [searchText, setSearchText] = useState("");
   const animatedHeight = useState(new Animated.Value(0))[0];
   const [newMessageVisible, setNewMessageVisible] = useState(false);
+  const { name, avatar } = useLocalSearchParams<{ name?: string; avatar?: string }>();
+
 
   const fetchUsers = async () => {
     if (!token) return;
@@ -47,6 +50,7 @@ const ChatList: React.FC = () => {
       else throw new Error("Invalid /User/Mp response");
     } catch (err: any) {
       console.error("Error fetching chats:", err);
+
       Alert.alert("API Error", err.message);
     }
   };
@@ -116,8 +120,9 @@ const ChatList: React.FC = () => {
     router.push({ pathname: "/ChatScreen", params: { userId: user.id, name: user.firstName, avatar: user.image } });
   };
 
+
   const renderChatItem = ({ item }: { item: any }) => {
-    const avatarUri = item.image || "https://ui-avatars.com/api/?name="+ encodeURIComponent(item.username || "User");
+    const avatarUri = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.username || "User")}`;
 
     return (
       <TouchableOpacity onPress={() => handlePress(item)}>
@@ -134,12 +139,12 @@ const ChatList: React.FC = () => {
   };
 
   const renderNewUserItem = ({ item }: { item: any }) => {
-    const avatarUri = item.image || "https://ui-avatars.com/api/?name=" + encodeURIComponent(item.firstName || "User");
+    const avatarUri = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.firstName || "User")}`;
+
     return (
       <TouchableOpacity onPress={() => { handlePress(item); setNewMessageVisible(false); }}>
         <View style={styles.messageRow}>
           <Image source={{ uri: avatarUri }} style={styles.avatar} />
-          {item.status === "Online" && <View style={styles.onlineDot} />}
           <View style={styles.messageContent}>
             <Text style={styles.name}>{item.firstName}</Text>
             <Text style={styles.preview}>{item.statusLocalized}</Text>
@@ -154,8 +159,8 @@ const ChatList: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={toggleSearch} style={styles.iconButton}><Icon name="search" size={24} color="black" /></TouchableOpacity>
-          <TouchableOpacity onPress={toggleNewMessage} style={styles.iconButton}><Icon name="add" size={24} color="black" /></TouchableOpacity>
+          <TouchableOpacity onPress={toggleSearch} style={styles.iconButton}><MaterialIcons name="search" size={24} color="black" /></TouchableOpacity>
+          <TouchableOpacity onPress={toggleNewMessage} style={styles.iconButton}><MaterialIcons name="add" size={24} color="black" /></TouchableOpacity>
         </View>
       </View>
       <Animated.View style={[styles.searchContainer, { height: animatedHeight }]}> 
@@ -181,7 +186,7 @@ const ChatList: React.FC = () => {
             <Text style={styles.modalTitle}> New Message</Text>
             <View style={styles.headerActions}>
               <TouchableOpacity onPress={() => setNewMessageVisible(false)}>
-                <Icon name="close" size={24} />
+                <MaterialIcons name="close" size={24} />
               </TouchableOpacity>
             </View>
           </View>
