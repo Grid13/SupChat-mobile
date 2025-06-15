@@ -1,4 +1,3 @@
-// ChatInput.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -137,11 +136,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f3f4',
     borderRadius: 20,
     marginHorizontal: 10,
-    fontSize: 16, // safe default
+    fontSize: 16, 
     color: '#333',
-    letterSpacing: 0, // ensure safe value
+    letterSpacing: 0, 
   },
-  // Bandeau « Répondre à » et « Modification »
   replyContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -156,17 +154,17 @@ const styles = StyleSheet.create({
     flex: 1,
     fontStyle: 'italic',
     color: '#555',
-    fontSize: 15, // ensure positive value
-    letterSpacing: 0, // ensure safe value
+    fontSize: 15, 
+    letterSpacing: 0, 
   },
   cancelButton: {
     marginLeft: 8,
     padding: 4,
   },
   cancelText: {
-    fontSize: 18, // ensure positive value
+    fontSize: 18, 
     color: '#555',
-    letterSpacing: 0, // ensure safe value
+    letterSpacing: 0, 
   },
   imageButton: {
     marginRight: 6,

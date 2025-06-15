@@ -18,8 +18,8 @@ import { RootState } from "./store/store";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useProfileImage } from "./hooks/useProfileImage";
-import optionsSections from "./Permission"; // Ensure permissions are imported
-import { Picker } from "@react-native-picker/picker"; // Import Picker
+import optionsSections from "./Permission"; 
+import { Picker } from "@react-native-picker/picker"; 
 import axios from 'axios';
 import dotenv from 'dotenv';
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
@@ -139,7 +139,6 @@ export default function WorkspaceSettings() {
     })();
   }, [id, token]);
 
-  // Use the custom hook for protected images
   const avatarBase64 = useProfileImage(imageUri || undefined, token || '');
 
   const pickImage = async () => {
@@ -151,7 +150,7 @@ export default function WorkspaceSettings() {
         quality: 0.8,
       });
       console.log("ImagePicker result:", result);
-      console.log("Workspace id:", id); // Log the workspace id
+      console.log("Workspace id:", id); 
       if (!result.canceled && result.assets && result.assets[0]?.uri) {
         setLoading(true);
         const uri = result.assets[0].uri;
@@ -162,7 +161,6 @@ export default function WorkspaceSettings() {
           name: filename,
           type: 'image/jpeg',
         } as any);
-        // Use "Workspace" as the attachmentType for upload
         const uploadUrl = 'http://'+ipAddress+':5263/api/Attachment?attachmentType=ProfilePicture';
         console.log("Uploading image to Attachment endpoint...", uploadUrl);
         const res = await fetch(uploadUrl, {
@@ -184,7 +182,6 @@ export default function WorkspaceSettings() {
         const data = await res.json();
         console.log("Attachment upload response data:", data);
         if (data.id) {
-          // PATCH workspace profile picture using the new endpoint
           const patchUrl = `http://${ipAddress}:5263/api/Workspace/${id}/ProfilePicture`;
           console.log("Patching workspace profile picture:", patchUrl, "with attachmentId:", data.id);
           const patchRes = await fetch(
@@ -228,7 +225,6 @@ export default function WorkspaceSettings() {
   const save = async () => {
     setLoading(true);
     try {
-      // PATCH with JSON body (not FormData)
       const body: any = {
         name: workspace.name,
         description: workspace.description,
@@ -294,12 +290,10 @@ export default function WorkspaceSettings() {
     }
   };
 
-  // For avatarUri, use useProfileImage for protected images
   const avatarUri = avatarBase64 || imageUri || "https://ui-avatars.com/api/?name=" + encodeURIComponent(workspace.name || "Workspace");
 
-  // Fetch roles on component mount
   useEffect(() => {
-    console.log('Fetching roles for workspaceId:', id); // Log workspace ID
+    console.log('Fetching roles for workspaceId:', id); 
     (async () => {
       try {
         const res = await fetch(`http://${ipAddress}:5263/api/Workspace/${id}/Roles`, {
@@ -310,11 +304,11 @@ export default function WorkspaceSettings() {
         });
         if (!res.ok) throw new Error(`Error ${res.status}`);
         const data: Role[] = await res.json();
-        console.log('Roles fetched successfully:', data); // Log fetched roles
+        console.log('Roles fetched successfully:', data); 
         setRoles(data);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
-        console.error('Failed to fetch roles:', errorMessage); // Log error
+        console.error('Failed to fetch roles:', errorMessage); 
         Alert.alert("Erreur", errorMessage || "Impossible de charger les rôles");
       }
     })();
@@ -441,7 +435,7 @@ export default function WorkspaceSettings() {
 
     setNewMembers((prev) => {
       const updatedMembers = [...prev, memberId];
-      assignRoleToMembers(selectedRoleId, updatedMembers); // Trigger role assignment after state update
+      assignRoleToMembers(selectedRoleId, updatedMembers); 
       return updatedMembers;
     });
 
@@ -468,8 +462,8 @@ export default function WorkspaceSettings() {
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
 
       Alert.alert("Succès", "Rôle retiré du membre avec succès");
-      fetchRoleMembers(selectedRoleId); // Refresh members list
-      fetchNonMembers(selectedRoleId); // Refresh non-members list
+      fetchRoleMembers(selectedRoleId); 
+      fetchNonMembers(selectedRoleId); 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       Alert.alert("Erreur", errorMessage || "Impossible de retirer le rôle");
@@ -494,7 +488,7 @@ export default function WorkspaceSettings() {
   const addPermission = () => {
     if (selectedPermission && !editedPermissions.includes(selectedPermission)) {
       setEditedPermissions((prev) => [...prev, selectedPermission]);
-      setSelectedPermission(null); // Reset dropdown after adding
+      setSelectedPermission(null); 
     }
   };
 
@@ -535,7 +529,6 @@ export default function WorkspaceSettings() {
     }
   };
 
-  // Fetch permissions for a role
   const fetchRolePermissions = async (workspaceId: number, roleId: number) => {
     try {
       const res = await fetch(
@@ -556,7 +549,6 @@ export default function WorkspaceSettings() {
     }
   };
 
-  // Preselect permissions when opening the edit role modal
   const openEditRoleModal = async (roleId: number) => {
     if (!roleId) {
       console.error("Invalid roleId provided:", roleId);
@@ -564,9 +556,9 @@ export default function WorkspaceSettings() {
     }
     try {
       const preselectedPermissions = await fetchRolePermissions(Number(id), roleId);
-      setEditedPermissions(preselectedPermissions); // Preselect permissions
-      setRoleToEdit(roles.find((role) => role.id === roleId) || null); // Set role to edit
-      setEditedRoleName(roles.find((role) => role.id === roleId)?.name || ""); // Set role name
+      setEditedPermissions(preselectedPermissions); 
+      setRoleToEdit(roles.find((role) => role.id === roleId) || null); 
+      setEditedRoleName(roles.find((role) => role.id === roleId)?.name || ""); 
       setSelectedRoleId(roleId);
       setEditRoleModalVisible(true);
     } catch (err) {
@@ -574,7 +566,6 @@ export default function WorkspaceSettings() {
     }
   };
 
-  // Render permissions in the modal
   const renderPermissions = () => {
     return optionsSections.map((section) => (
       <View key={section.title} style={styles.permissionSection}>
@@ -608,21 +599,20 @@ export default function WorkspaceSettings() {
 
   const handleEditRole = (roleId: number) => {
     if (!roleId) {
-        console.error('Invalid roleId provided:', roleId); // Log invalid roleId
+        console.error('Invalid roleId provided:', roleId);
         return;
     }
-    console.log('Handle edit role for roleId:', roleId); // Log roleId
-    setSelectedRoleId(roleId); // Set the selected role ID
-    setEditRoleModalVisible(true); // Open the modal
+    console.log('Handle edit role for roleId:', roleId); 
+    setSelectedRoleId(roleId); 
+    setEditRoleModalVisible(true); 
 };
 
-  // Ensure roles are displayed correctly and allow selection
   const renderRoles = () => {
     if (roles.length === 0) {
-        console.log('No roles available to render'); // Log if no roles are available
+        console.log('No roles available to render'); 
         return <Text style={styles.label}>Aucun rôle disponible</Text>;
     }
-    console.log('Rendering roles:', roles); // Log roles being rendered
+    console.log('Rendering roles:', roles); 
     return roles.map((role) => (
         <TouchableOpacity
             key={role.id}
@@ -631,7 +621,7 @@ export default function WorkspaceSettings() {
                 selectedRoleId === role.id && styles.optionActive,
             ]}
             onPress={() => {
-                console.log('Role selected:', role); // Log selected role
+                console.log('Role selected:', role); 
                 setSelectedRoleId(role.id);
                 fetchRoleMembers(role.id);
                 fetchNonMembers(role.id);
@@ -777,11 +767,11 @@ export default function WorkspaceSettings() {
                 <View key={nonMember.id} style={styles.memberItem}>
                   <Text>{nonMember.username}</Text>
                   <TouchableOpacity
-                    style={styles.addButton} // New button style
+                    style={styles.addButton} 
                     onPress={() => {
                       setNewMembers((prev) => {
                         const updatedMembers = [...prev, nonMember.id];
-                        assignRoleToMembers(selectedRoleId!, updatedMembers); // Pass roleId and updatedMembers
+                        assignRoleToMembers(selectedRoleId!, updatedMembers); 
                         return updatedMembers;
                       });
                       setNonMembers((prev) => prev.filter((nm) => nm.id !== nonMember.id));
@@ -996,7 +986,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 4,
     marginLeft: "auto",
-    alignSelf: "center", // Adjusted alignment to center vertically
+    alignSelf: "center", 
   },
   removeButtonText: {
     color: "#fff",

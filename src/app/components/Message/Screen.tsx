@@ -16,8 +16,7 @@ const Screen: React.FC = () => {
   const token = useSelector((state: RootState) => state.auth.token);
   const params = useLocalSearchParams();
   const userId = Number(Array.isArray(params.userId) ? params.userId[0] : params.userId);
-  const [messages, setMessages] = useState<{ text: string; time: string; isSender: boolean; avatar: string; id?: number }[]>([]); // Ajout id pour scroll
-  const [showSearch, setShowSearch] = useState(false);
+  const [messages, setMessages] = useState<{ text: string; time: string; isSender: boolean; avatar: string; id?: number }[]>([]);   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -37,7 +36,6 @@ const Screen: React.FC = () => {
     }, 100);
   };
 
-  // Handler pour la recherche
   const handleSearch = async () => {
     if (!searchText.trim() || !token || !userId) return;
     setSearchLoading(true);
@@ -59,11 +57,10 @@ const Screen: React.FC = () => {
     }
   };
 
-  // Scroll vers le message sélectionné
   const scrollToMessage = (id: number) => {
     const index = messages.findIndex(m => m.id === id);
     if (index !== -1 && scrollViewRef.current) {
-      scrollViewRef.current.scrollTo({ y: index * 60, animated: true }); // 60 = hauteur approx. d'un message
+      scrollViewRef.current.scrollTo({ y: index * 60, animated: true }); 
     }
     setShowSearch(false);
     setSearchResults([]);

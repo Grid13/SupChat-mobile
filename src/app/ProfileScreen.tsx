@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 import React, { useEffect, useState } from "react";
@@ -191,9 +191,7 @@ const SettingsScreen = () => {
         });
         if (!res.ok) throw new Error('Upload failed');
         const data = await res.json();
-        // Use the fileId to construct the image URL for GET /api/Attachment/{fileId}
         const imageUrl = `http://${ipAddress}:5263/api/Attachment/${data.id}`;
-        // PATCH to update profile picture for user
         const userId = profile?.applicationUser?.id;
         if (userId && data.id) {
           const patchRes = await fetch(`http://${ipAddress}:5263/api/User/${userId}/ProfilePicture`, {
@@ -208,12 +206,10 @@ const SettingsScreen = () => {
             Alert.alert('Error', 'Failed to update profile picture on server');
           }
         }
-        // Set the profile image to the direct GET /api/Attachment/{fileId} URL
         setProfile((p: any) => {
           const next = { ...p, image: imageUrl };
           return next;
         });
-        // Refresh the profile from the server to get the latest info (including image)
         await fetchProfile();
         Alert.alert('Success', 'Profile picture updated!');
       }
@@ -282,7 +278,7 @@ const SettingsScreen = () => {
       });
       if (!response.ok) throw new Error(`Error ${response.status}`);
       Alert.alert("Success", "Bot deleted successfully");
-      fetchOwnedBots(); // Refresh the list of owned bots
+      fetchOwnedBots();
     } catch (err: any) {
       Alert.alert("Error", err.message || "Unable to delete bot");
     }
@@ -303,7 +299,7 @@ const SettingsScreen = () => {
       Alert.alert("Success", "Bot created successfully");
       setBotNameModalVisible(false);
       setBotName('');
-      fetchOwnedBots(); // Refresh the list of owned bots
+      fetchOwnedBots();
     } catch (err: any) {
       Alert.alert("Error", err.message || "Unable to create bot");
     }
@@ -332,7 +328,7 @@ const SettingsScreen = () => {
       if (!response.ok) throw new Error(`Error ${response.status}`);
       Alert.alert("Success", "Profile updated successfully");
       setEditProfileModalVisible(false);
-      fetchProfile(); // Refresh profile data
+      fetchProfile();
     } catch (err: any) {
       Alert.alert("Error", err.message || "Unable to update profile");
     }
@@ -712,7 +708,7 @@ const styles = StyleSheet.create({
   pencilIcon: {
     width: 20,
     height: 20,
-    tintColor: '#000', // black and white
+    tintColor: '#000',
   },
   name: { fontSize: 20, fontWeight: "bold", textAlign: "center", marginBottom: 4 },
   role: { fontSize: 16, textAlign: "center", color: "#666" },
@@ -765,7 +761,6 @@ const styles = StyleSheet.create({
     color: "#e74c3c",
     fontWeight: "600",
   },
-  // New styles for centered modal
   securityModalOverlay: {
     position: 'absolute',
     top: 0,

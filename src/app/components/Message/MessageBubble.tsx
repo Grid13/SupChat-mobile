@@ -1,4 +1,3 @@
-// MessageBubble.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { useSelector } from 'react-redux';
@@ -9,7 +8,6 @@ import dotenv from 'dotenv';
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
-// Add parentId to the props interface
 interface MessageBubbleProps {
   text: string;
   time: string;
@@ -43,7 +41,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onAddReaction,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const token = useSelector((state: RootState) => state.auth.token) || ''; // Ensure token is retrieved from the store
+  const token = useSelector((state: RootState) => state.auth.token) || ''; 
   const { avatarUrl } = useMessageSender(senderId, token);
 
   const [attachmentBase64, setAttachmentBase64] = useState<Record<string, string | null>>({});
@@ -185,7 +183,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginVertical: 4,
     maxWidth: '80%',
-    paddingTop: 8, // Add padding to create space
+    paddingTop: 8, 
   },
   senderContainer: {
     justifyContent: 'flex-end',
@@ -199,7 +197,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    marginLeft: 8, // Ajoutez marginLeft pour l'avatar à droite
+    marginLeft: 8, 
     marginRight: 8,
     marginTop: 0,
     alignSelf: 'flex-start',
@@ -207,7 +205,7 @@ const styles = StyleSheet.create({
   bubbleContainer: {
     flexDirection: 'column',
     alignItems: 'flex-end',
-    marginTop: 2, // Add small top margin to create separation
+    marginTop: 2, 
   },
   senderBubbleContainer: { alignItems: 'flex-end' },
   receiverBubbleContainer: { alignItems: 'flex-start' },
@@ -300,15 +298,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  // Add Discord/Slack-like reaction styles
   reactionsDiscordStyle: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
     marginLeft: 0,
     gap: 6,
-    flexWrap: 'wrap', // Allow reactions to wrap to the next line
-    maxWidth: '100%', // Prevent overflow
+    flexWrap: 'wrap',
+    maxWidth: '100%', 
   },
   reactionDiscordBox: {
     flexDirection: 'row',
@@ -324,12 +321,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   reactionDiscordEmoji: {
-    fontSize: 13, // smaller emoji
+    fontSize: 13, 
     marginRight: 4,
     color: '#fff',
   },
   reactionDiscordCount: {
-    fontSize: 12, // smaller count
+    fontSize: 12, 
     color: '#fff',
     fontWeight: 'bold',
   },

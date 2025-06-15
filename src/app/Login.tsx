@@ -84,15 +84,7 @@ const Login = () => {
       if (result.type === "success" && result.url) {
       const url = new URL(result.url);
       
-      // Log the full URL to debug
-      console.log("Full redirect URL:", result.url);
-      console.log("Search params:", url.searchParams.toString());
-      console.log("Hash:", url.hash);
-      
       const token = url.searchParams.get("ACCESS_TOKEN");
-
-        // const url = new URL(result.url);
-        // const token = url.searchParams.get("ACCESS_TOKEN") || url.hash.split("=")[1];
         if (token) {
           dispatch(loginSuccess({ user: { email: "github_user" }, token }));
           router.push("/(tabs)/Chat");

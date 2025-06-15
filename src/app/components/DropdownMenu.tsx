@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
-import { useRouter } from 'expo-router'; // Import useRouter for navigation
+import { useRouter } from 'expo-router'; 
 import dotenv from 'dotenv';
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
@@ -18,13 +18,12 @@ interface DropdownMenuProps {
   visible: boolean;
   onClose: () => void;
   onViewInfo?: () => void;
-  workspaceId: number; // Add workspaceId prop
+  workspaceId: number; 
 }
 
 const DropdownMenu: React.FC<DropdownMenuProps> = ({ visible, onClose, onViewInfo, workspaceId }) => {
   const token = useSelector((state: RootState) => state.auth.token);
-  const router = useRouter(); // Initialize router for navigation
-
+  const router = useRouter(); 
   
 
   

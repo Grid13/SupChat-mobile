@@ -1,7 +1,7 @@
 import { Slot } from "expo-router";
 
 import { Provider } from "react-redux";
-import { store } from "./store/store"; // ajuste selon ton projet
+import { store } from "./store/store"; 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SocketProvider } from "./hooks/SocketProvider";
 

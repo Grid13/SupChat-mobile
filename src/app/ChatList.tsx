@@ -27,15 +27,14 @@ const ChatList: React.FC = () => {
   const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token);
 
-  const [users, setUsers] = useState<any[]>([]); // existing chats
-  const [allUsers, setAllUsers] = useState<any[]>([]); // for new messages
+  const [users, setUsers] = useState<any[]>([]); 
+  const [allUsers, setAllUsers] = useState<any[]>([]); 
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchText, setSearchText] = useState("");
   const animatedHeight = useState(new Animated.Value(0))[0];
   const [newMessageVisible, setNewMessageVisible] = useState(false);
 
-  // Fetch existing private chats
   const fetchUsers = async () => {
     if (!token) return;
     try {
@@ -52,7 +51,6 @@ const ChatList: React.FC = () => {
     }
   };
 
-  // Fetch all users for new conversations
   const fetchAllUsers = async () => {
     if (!token) return;
     try {
@@ -70,7 +68,6 @@ const ChatList: React.FC = () => {
     }
   };
 
-  // Fetch current user id
   const fetchCurrentUser = async () => {
     if (!token) return;
     try {
@@ -90,7 +87,6 @@ const ChatList: React.FC = () => {
     fetchCurrentUser();
   }, [token]);
 
-  // Toggle search bar
   const toggleSearch = () => {
     setSearchVisible(prev => {
       const toValue = prev ? 0 : 50;
@@ -99,18 +95,15 @@ const ChatList: React.FC = () => {
     });
   };
 
-  // Toggle modal for new message
   const toggleNewMessage = () => {
     if (!newMessageVisible) fetchAllUsers();
     setNewMessageVisible(v => !v);
   };
 
-  // Filter for main chat list
   const filteredChats = users.filter(u =>
     u.firstName?.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  // Exclude existing chats and self for new conversations
   const availableUsers = allUsers.filter(u => {
     if (u.id === currentUserId) return false;
     if (users.some(c => c.id === u.id)) return false;
@@ -124,7 +117,10 @@ const ChatList: React.FC = () => {
   };
 
   const renderChatItem = ({ item }: { item: any }) => {
-    const avatarUri = item.image || "https://ui-avatars.com/api/?name=" + encodeURIComponent(item.firstName || "User");
+    const avatarUri = item.image || "https://ui-avatars.com/api/?name="+ encodeURIComponent(item.username || "User");
+    console.log("Rendering chat item:", item.firstName);
+    console.log("Avatar URI:", avatarUri);
+    
     return (
       <TouchableOpacity onPress={() => handlePress(item)}>
         <View style={styles.messageRow}>
@@ -140,7 +136,9 @@ const ChatList: React.FC = () => {
   };
 
   const renderNewUserItem = ({ item }: { item: any }) => {
+    console.log("Rendering new user item:", item.firstName);
     const avatarUri = item.image || "https://ui-avatars.com/api/?name=" + encodeURIComponent(item.firstName || "User");
+    console.log("Avatar URI:", avatarUri);
     return (
       <TouchableOpacity onPress={() => { handlePress(item); setNewMessageVisible(false); }}>
         <View style={styles.messageRow}>

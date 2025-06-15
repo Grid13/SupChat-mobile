@@ -23,7 +23,7 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   workspaceName: string;
-  workspaceId?: number; // Accept workspaceId as optional for compatibility
+  workspaceId?: number; 
 }
 
 const WorkspaceInfoSheet: React.FC<Props> = ({ visible, onClose, workspaceName, workspaceId }) => {
@@ -31,7 +31,7 @@ const WorkspaceInfoSheet: React.FC<Props> = ({ visible, onClose, workspaceName, 
   const [isVisible, setIsVisible] = useState(visible);
   const token = useSelector((state: RootState) => state.auth.token);
 
-  // Update internal visibility state when prop changes
+
   useEffect(() => {
     console.log('WorkspaceInfoSheet visibility prop changed:', visible);
     setIsVisible(visible);
@@ -62,7 +62,6 @@ const WorkspaceInfoSheet: React.FC<Props> = ({ visible, onClose, workspaceName, 
     avatar: `https://randomuser.me/api/portraits/men/${idx * 10}.jpg`,
   }));
 
-  // Use local state for visibility
   return (
     <Modal 
       visible={isVisible}

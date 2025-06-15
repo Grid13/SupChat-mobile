@@ -38,7 +38,6 @@ const WorkspaceList: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchText, setSearchText] = useState("");
 
-  // Helper to get workspace avatar (with hook for protected images)
   const WorkspaceAvatar = ({
     profilePictureId,
     name,
@@ -49,7 +48,6 @@ const WorkspaceList: React.FC = () => {
     const imageUrl = profilePictureId
       ? `http://${ipAddress}:5263/api/Attachment/${profilePictureId}`
       : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
-    // Fix: ensure token is always a string
     const token = useSelector((state: RootState) => state.auth.token) || "";
     const avatarBase64 = useProfileImage(
       profilePictureId ? imageUrl : undefined,
@@ -116,7 +114,7 @@ const WorkspaceList: React.FC = () => {
           subtitle: ws.description || "No description",
           color: "#6B8AFD",
           initials: ws.name?.slice(0, 2).toUpperCase() || "WS",
-          profilePictureId: ws.profilePictureId, // Add this property
+          profilePictureId: ws.profilePictureId, 
         }));
         setWorkspaces(transformed);
       } else {

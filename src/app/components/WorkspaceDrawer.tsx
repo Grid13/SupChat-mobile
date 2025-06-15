@@ -53,12 +53,12 @@ const WorkspaceDrawer: React.FC<Props> = ({
   onChannelCreated,
 }) => {
   const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [addModalVisible, setAddModalVisible] = useState(false); // State for "+" modal
-  const [selectedChannelForAdd, setSelectedChannelForAdd] = useState<Channel | null>(null); // State for selected channel
-  const [notMembers, setNotMembers] = useState<any[]>([]); // State for users not in the channel
-  const [selectedUsers, setSelectedUsers] = useState<number[]>([]); // State for selected users
+  const [addModalVisible, setAddModalVisible] = useState(false); 
+  const [selectedChannelForAdd, setSelectedChannelForAdd] = useState<Channel | null>(null); 
+  const [notMembers, setNotMembers] = useState<any[]>([]); 
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([]); 
   const router = useRouter();
-  const token = useSelector((state: RootState) => state.auth.token); // Retrieve token from Redux store
+  const token = useSelector((state: RootState) => state.auth.token); 
 
   if (!visible) return null;
 
@@ -70,13 +70,13 @@ const WorkspaceDrawer: React.FC<Props> = ({
           method: "DELETE",
           headers: {
             Accept: "text/plain",
-            Authorization: `Bearer ${token}`, // Use token here
+            Authorization: `Bearer ${token}`, 
           },
         }
       );
       if (res.ok) {
         Alert.alert("Success", "Channel deleted successfully.");
-        onChannelCreated?.(); // Refresh the channel list
+        onChannelCreated?.(); 
       } else {
         Alert.alert("Error", `Failed to delete channel (status ${res.status}).`);
       }
@@ -124,7 +124,7 @@ const WorkspaceDrawer: React.FC<Props> = ({
       if (res.ok) {
         Alert.alert("Success", "Users added successfully.");
         setAddModalVisible(false);
-        onChannelCreated?.(); // Refresh the channel list
+        onChannelCreated?.(); 
       } else {
         Alert.alert("Error", `Failed to add users (status ${res.status}).`);
       }
@@ -135,8 +135,7 @@ const WorkspaceDrawer: React.FC<Props> = ({
 
   const openAddModal = (channel: Channel) => {
     setSelectedChannelForAdd(channel);
-    fetchNotMembers(channel.id); // Fetch users not in the channel
-    setAddModalVisible(true);
+    fetchNotMembers(channel.id);     setAddModalVisible(true);
   };
 
   console.log(`Using IP Address: ${ipAddress}`);
@@ -214,7 +213,7 @@ const WorkspaceDrawer: React.FC<Props> = ({
                   {ch.visibility === "Private" && (
                     <TouchableOpacity
                       style={styles.lockIcon}
-                      onPress={() => openAddModal(ch)} // Open modal instead of drawer
+                      onPress={() => openAddModal(ch)} 
                     >
                       <Ionicons name="lock-closed-outline" size={20} color="#4F8CFF" />
                     </TouchableOpacity>
@@ -482,7 +481,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent background
+    backgroundColor: "rgba(0, 0, 0, 0.5)", 
   },
   centeredModal: {
     width: 250,

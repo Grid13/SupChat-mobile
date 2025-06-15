@@ -46,7 +46,6 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
 
   const [tab, setTab] = useState<"create" | "join">("create");
 
-  // Create tab state
   const [name, setName] = useState("");
   const [visibility, setVisibility] = useState<"Public" | "Private">("Public");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -54,7 +53,6 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
   const [profilePictureId, setProfilePictureId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Join tab state
   const [available, setAvailable] = useState<AvailableWorkspace[]>([]);
   const [loadingJoinList, setLoadingJoinList] = useState(false);
 

@@ -170,7 +170,6 @@ const WorkspaceChat: React.FC = () => {
   const formatDay = (iso: string) =>
       format(new Date(iso), "d MMMM yyyy", { locale: fr });
 
-  // Fetch messages with parent text
   const fetchMessages = useCallback(async () => {
     setMessagesLoading(true);
     try {
@@ -530,7 +529,6 @@ const WorkspaceChat: React.FC = () => {
     }
   };
 
-  // Fetch user ID
   useEffect(() => {
     (async () => {
       try {
@@ -581,7 +579,6 @@ const WorkspaceChat: React.FC = () => {
     }
   };
 
-  // Ajoute le message reçu via SignalR dans la liste
   const handleReceiveSocket = useCallback(
       (msg: any) => {
         if (!selectedChannel || msg.channelId !== selectedChannel.id) return;
@@ -647,7 +644,6 @@ const WorkspaceChat: React.FC = () => {
     token: token || "",
   });
 
-  // Composant principal avec gestion conditionnelle des gestes
   const renderMainContent = () => (
       <KeyboardAvoidingView
           style={styles.flex}

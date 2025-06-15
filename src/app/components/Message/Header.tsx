@@ -60,22 +60,6 @@ const Header: React.FC<HeaderProps> = ({ name, avatar, onSearchPress }) => {
   );
 };
 
-// TODO : Add shared workspaces section
-  {/* Shared workspaces
-      <View style={styles.sharedSection}>
-        <View style={styles.sharedAvatars}>
-          <Image source={{ uri: avatar as string }} style={styles.sharedImage} />
-          <Image source={{ uri: avatar as string }} style={styles.sharedImage} />
-          <Image source={{ uri: avatar as string }} style={styles.sharedImage} />
-        </View>
-        <Text style={styles.sharedText}>3 common workspaces</Text>
-        <TouchableOpacity style={styles.blockBtn}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <MaterialIcons name="block" size={16} color="#fff" />
-            <Text style={{ color: "#fff", fontWeight: "bold", marginLeft: 5 }}>Block</Text>
-          </View>
-        </TouchableOpacity>
-      </View> */}
 
 
 const styles = StyleSheet.create({

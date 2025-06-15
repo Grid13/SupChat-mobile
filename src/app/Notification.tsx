@@ -7,7 +7,6 @@ import dotenv from 'dotenv';
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
-// Interface pour le modèle de notification reçu via API
 export interface NotificationModel {
   Id: number;
   Content: string;
@@ -22,7 +21,6 @@ interface NotificationItemProps {
   notification: NotificationModel;
 }
 
-// Composant pour afficher une seule notification
 const NotificationItem: React.FC<NotificationItemProps> = ({ notification }) => (
   <View style={styles.container}>
     <Text style={styles.type}>{notification.TypeLocalized}</Text>
@@ -30,7 +28,6 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification }) => 
   </View>
 );
 
-// Composant principal qui récupère et liste les notifications actives
 const Notification: React.FC = () => {
   const token = useSelector((state: RootState) => state.auth.token);
   const [notifications, setNotifications] = useState<NotificationModel[]>([]);
@@ -48,7 +45,6 @@ const Notification: React.FC = () => {
         });
         const text = await res.text();
         const data = JSON.parse(text || '[]');
-        // Map API response to NotificationModel interface
         const mapped: NotificationModel[] = data.map((n: any) => ({
           Id: n.id,
           Content: n.content,

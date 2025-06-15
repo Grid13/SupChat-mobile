@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 
 interface InputFieldProps {
-  label?: string; // 🔁 Désormais optionnel
+  label?: string; 
   placeholder: string;
   value: string;
   onChangeText: (text: string) => void;

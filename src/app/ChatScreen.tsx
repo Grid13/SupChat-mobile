@@ -1,4 +1,3 @@
-// ChatScreen.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -30,13 +29,13 @@ import dotenv from 'dotenv';
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 
-export interface LocalChatMessageDto { // Renamed to LocalChatMessageDto
+export interface LocalChatMessageDto {
   id: number;
   content: string;
   sendDate: string;
   senderId: number;
   parentId?: number;
-  messageAttachments?: Array<{ attachmentId: string }>; // Added messageAttachments property
+  messageAttachments?: Array<{ attachmentId: string }>; 
 }
 
 type MessageItem =
@@ -47,7 +46,7 @@ type MessageItem =
       text: string;
       time: string;
       isSender: boolean;
-      senderId: number; // Replace avatar with senderId
+      senderId: number;
       parentId?: number;
       attachments?: string[];
       reactions?: Array<{
@@ -73,12 +72,11 @@ const ChatScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [replyTo, setReplyTo] = useState<{ id: number; text: string } | null>(null);
 
-  // État pour le mode édition
+
   const [editing, setEditing] = useState<{ id: number; text: string } | null>(null);
 
-  // **États pour le drawer**
   const [drawerVisible, setDrawerVisible] = useState(false);
-  // stocke { id, text, isSender } du message sur lequel on a fait un long-press
+
   const [drawerMessage, setDrawerMessage] = useState<{
     id: number;
     text: string;
@@ -90,7 +88,6 @@ const ChatScreen: React.FC = () => {
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // --- Recherche messages ---
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -109,7 +106,6 @@ const ChatScreen: React.FC = () => {
   const formatDay = (iso: string) =>
     format(new Date(iso), 'd MMMM yyyy', { locale: fr });
 
-  // 1) Récupérer l'ID de l'utilisateur connecté
   useEffect(() => {
     (async () => {
       try {
@@ -124,7 +120,6 @@ const ChatScreen: React.FC = () => {
     })();
   }, [token]);
 
-  // Function to fetch reactions for a message
   const fetchReactions = async (messageId: number): Promise<Array<{ id: number; content: string; messageId: number; senderId: number }>> => {
     try {
       const res = await fetch(`http://${ipAddress}:5263/api/Message/${messageId}/Reactions`, {
@@ -221,18 +216,16 @@ const ChatScreen: React.FC = () => {
     if (myUserId && otherUserId) fetchMessages();
   }, [myUserId, otherUserId, fetchMessages]);
 
-  // 3) Scroll automatique à chaque nouveau message
   useEffect(() => {
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollToEnd({ animated: true });
     }
   }, [messages]);
 
-  // 4) Gestion du WebSocket (ajout handleUpdate, handleDelete éventuellement)
   const handleReceive = useCallback(
     async (m: ChatMessageDto) => {
       if (m.senderId === otherUserId) {
-        const reactions = await fetchReactions(m.id); // Fetch reactions for the new message
+        const reactions = await fetchReactions(m.id);
         setMessages((prev) => [
           ...prev,
           {
@@ -243,7 +236,7 @@ const ChatScreen: React.FC = () => {
             isSender: false,
             senderId: m.senderId,
             parentId: m.parentId,
-            reactions, // Include reactions
+            reactions, 
           },
         ]);
       }
@@ -278,7 +271,6 @@ const ChatScreen: React.FC = () => {
     handleDelete
   );
 
-  // 5) Quand on fait un long-press, on ouvre le drawer
   const onMessageLongPress = (
     msgId: number,
     msgText: string,
@@ -288,7 +280,6 @@ const ChatScreen: React.FC = () => {
     setDrawerVisible(true);
   };
 
-  // 6) Supprimer un message (même code qu’avant)
   const deleteMessage = async (msgId: number) => {
     try {
       const res = await fetch(
@@ -316,7 +307,6 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  // 7) Enregistrer l’édition (PATCH)
   const saveEditedMessage = async (newText: string) => {
     if (!editing) return;
     const msgId = editing.id;
@@ -354,7 +344,6 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  // 8) Envoi d’un nouveau message (ou réponse)
   const handleSend = async (text: string, parentId: number | null) => {
     if (editing) return;
 
@@ -406,7 +395,6 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  // 9) Handlers pour chaque action du drawer
   const onReplyFromDrawer = () => {
     if (drawerMessage) {
       setReplyTo({ id: drawerMessage.id, text: drawerMessage.text });
@@ -433,7 +421,6 @@ const ChatScreen: React.FC = () => {
     setDrawerVisible(false);
   };
 
-  // Add image picker handler
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -499,7 +486,7 @@ const ChatScreen: React.FC = () => {
             text: msg.content,
             time: formatTime(msg.sendDate),
             isSender: true,
-            senderId: myUserId!, // Add senderId for sent messages
+            senderId: myUserId!, 
             parentId: msg.parentId,
             attachments: uris,
           },
@@ -513,7 +500,6 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  // Handler to insert emoji into the input
   const handleEmojiSelected = (emoji: string) => {
     setShowEmojiPicker(false);
     if (appendEmojiRef.current) {
@@ -521,7 +507,6 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  // Handler pour la recherche
   const handleSearch = async (text: string) => {
     setSearchText(text);
     if (!text.trim()) {
@@ -564,11 +549,9 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  // Scroll vers le message sélectionné
   const scrollToMessage = (msgId: number) => {
     const idx = messages.findIndex((m) => m.type === 'message' && m.id === msgId);
     if (idx !== -1 && scrollViewRef.current) {
-      // ScrollView n'a pas scrollToIndex, mais on peut approximer
       setTimeout(() => {
         scrollViewRef.current?.scrollTo({ y: idx * 80, animated: true });
       }, 100);
@@ -578,7 +561,6 @@ const ChatScreen: React.FC = () => {
     setSearchResults([]);
   };
 
-  // Update the reaction handling
   const onAddReactionFromDrawer = (emoji: any) => {
     if (drawerMessage) {
       try {
@@ -697,15 +679,15 @@ const ChatScreen: React.FC = () => {
                     return (
                       <MessageBubble
                         key={msg.id}
-                        id={msg.id} // Ensure the id is passed
+                        id={msg.id} 
                         text={msg.text}
                         time={msg.time}
                         isSender={msg.isSender}
-                        senderId={msg.senderId} // Replace avatar with senderId
+                        senderId={msg.senderId} 
                         parentId={msg.parentId}
                         parentText={parentText}
                         attachments={msg.attachments}
-                        reactions={msg.reactions} // Pass reactions to MessageBubble
+                        reactions={msg.reactions} 
                         onLongPress={() =>
                           onMessageLongPress(msg.id, msg.text, msg.isSender)
                         }

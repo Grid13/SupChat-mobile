@@ -8,7 +8,6 @@ import dotenv from "dotenv";
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
-// Schéma de validation pour l'inscription
 const registerSchema = yup.object().shape({
   email: yup.string().email("Email invalide").required("Email obligatoire"),
   username: yup.string().min(3, "Min. 3 caractères").required("Nom d'utilisateur obligatoire"),
