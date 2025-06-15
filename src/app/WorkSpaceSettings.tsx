@@ -134,7 +134,7 @@ export default function WorkspaceSettings() {
           setImageUri(data.profilePictureUrl);
         }
       } catch (err: any) {
-        Alert.alert("Erreur", err.message || "Impossible de charger le workspace");
+        Alert.alert("Error", err.message || "Unable to load the workspace");
       }
     })();
   }, [id, token]);
@@ -171,7 +171,7 @@ export default function WorkspaceSettings() {
         });
         if (!res.ok) {
           const errorText = await res.text();
-          Alert.alert("Erreur upload", errorText);
+          Alert.alert("Upload Error", errorText);
           throw new Error('Upload failed');
         }
         const data = await res.json();
@@ -198,13 +198,13 @@ export default function WorkspaceSettings() {
           }
           setProfilePictureId(data.id);
           setImageUri(`http://${ipAddress}:5263/api/Attachment/${data.id}`);
-          Alert.alert('Succès', 'Image du workspace mise à jour !');
+          Alert.alert('Success', 'Workspace image updated!');
         } else {
         }
       } else {
       }
     } catch (err: any) {
-      Alert.alert("Erreur", "Impossible de sélectionner ou mettre à jour l'image");
+      Alert.alert("Error", "Unable to select or update the image");
     } finally {
       setLoading(false);
     }
@@ -233,12 +233,12 @@ export default function WorkspaceSettings() {
       );
       if (!res.ok) {
         const txt = await res.text();
-        throw new Error(txt || `Erreur ${res.status}`);
+        throw new Error(txt || `Error ${res.status}`);
       }
-      Alert.alert("Succès", "Workspace mis à jour");
+      Alert.alert("Success", "Workspace updated");
       router.back();
     } catch (err: any) {
-      Alert.alert("Erreur", err instanceof Error ? err.message : "Une erreur inconnue s'est produite");
+      Alert.alert("Error", err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
       setLoading(false);
     }
@@ -246,11 +246,11 @@ export default function WorkspaceSettings() {
 
   const confirmDelete = () => {
     Alert.alert(
-      "Attention",
-      "Voulez-vous vraiment supprimer ce workspace ?",
+      "Warning",
+      "Do you really want to delete this workspace?",
       [
-        { text: "Annuler", style: "cancel" },
-        { text: "Supprimer", style: "destructive", onPress: deleteWorkspace },
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: deleteWorkspace },
       ]
     );
   };
@@ -268,11 +268,11 @@ export default function WorkspaceSettings() {
           },
         }
       );
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      Alert.alert("Supprimé", "Workspace supprimé");
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      Alert.alert("Deleted", "Workspace deleted");
       router.back();
     } catch (err: any) {
-      Alert.alert("Erreur", err.message);
+      Alert.alert("Error", err.message);
     } finally {
       setLoadingDelete(false);
     }
@@ -295,7 +295,7 @@ export default function WorkspaceSettings() {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
         console.error('Failed to fetch roles:', errorMessage); 
-        Alert.alert("Erreur", errorMessage || "Impossible de charger les rôles");
+        Alert.alert("Error", errorMessage || "Unable to load roles");
       }
     })();
   }, [id, token]);
@@ -315,10 +315,10 @@ export default function WorkspaceSettings() {
       const data: Role = await res.json();
       setRoles((prevRoles) => [...prevRoles, data]);
       setNewRole({ id: 0, name: '', hierarchy: 0, workspaceId: Number(id) });
-      Alert.alert("Succès", "Rôle ajouté avec succès");
+      Alert.alert("Success", "Role added successfully");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      Alert.alert("Erreur", errorMessage || "Impossible d'ajouter le rôle");
+      Alert.alert("Error", errorMessage || "Unable to add role");
     }
   };
 
@@ -362,7 +362,7 @@ export default function WorkspaceSettings() {
       setRoleMembers(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      Alert.alert("Erreur", errorMessage || "Impossible de charger les membres du rôle");
+      Alert.alert("Error", errorMessage || "Unable to load role members");
     }
   };
 
@@ -382,7 +382,7 @@ export default function WorkspaceSettings() {
       setNonMembers(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      Alert.alert("Erreur", errorMessage || "Impossible de charger les non-membres du rôle");
+      Alert.alert("Error", errorMessage || "Unable to load non-members of the role");
     }
   };
 
@@ -405,14 +405,14 @@ export default function WorkspaceSettings() {
 
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(errorText || `Erreur ${res.status}`);
+        throw new Error(errorText || `Error ${res.status}`);
       }
 
-      Alert.alert("Succès", "Rôle assigné aux membres avec succès");
+      Alert.alert("Success", "Role assigned to members successfully");
       await fetchRoleMembers(roleId);
       await fetchNonMembers(roleId);
     } catch (err) {
-      Alert.alert("Erreur", err instanceof Error ? err.message : "Une erreur inconnue s'est produite");
+      Alert.alert("Error", err instanceof Error ? err.message : "An unknown error occurred");
     }
   };
 
@@ -442,14 +442,14 @@ export default function WorkspaceSettings() {
         },
       });
 
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      if (!res.ok) throw new Error(`Error ${res.status}`);
 
-      Alert.alert("Succès", "Rôle retiré du membre avec succès");
+      Alert.alert("Success", "Role removed from member successfully");
       fetchRoleMembers(selectedRoleId); 
       fetchNonMembers(selectedRoleId); 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      Alert.alert("Erreur", errorMessage || "Impossible de retirer le rôle");
+      Alert.alert("Error", errorMessage || "Unable to remove role");
     }
   };
 
@@ -498,7 +498,7 @@ export default function WorkspaceSettings() {
 
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(errorText || `Erreur ${res.status}`);
+        throw new Error(errorText || `Error ${res.status}`);
       }
 
       const updatedRole = await res.json();
@@ -506,9 +506,9 @@ export default function WorkspaceSettings() {
         prevRoles.map((r) => (r.id === roleToEdit.id ? updatedRole : r))
       );
       setEditRoleModalVisible(false);
-      Alert.alert("Succès", "Rôle mis à jour avec succès");
+      Alert.alert("Success", "Role updated successfully");
     } catch (err) {
-      Alert.alert("Erreur", err instanceof Error ? err.message : "Une erreur inconnue s'est produite");
+      Alert.alert("Error", err instanceof Error ? err.message : "An unknown error occurred");
     }
   };
 
@@ -527,7 +527,7 @@ export default function WorkspaceSettings() {
       const data = await res.json();
       return data.map((permission: { permissionId: number }) => permission.permissionId);
     } catch (err) {
-      Alert.alert("Erreur", err instanceof Error ? err.message : "Impossible de charger les permissions du rôle");
+      Alert.alert("Error", err instanceof Error ? err.message : "Unable to load role permissions");
       return [];
     }
   };
@@ -591,7 +591,7 @@ export default function WorkspaceSettings() {
 
   const renderRoles = () => {
     if (roles.length === 0) {
-        return <Text style={styles.label}>Aucun rôle disponible</Text>;
+        return <Text style={styles.label}>No roles available</Text>;
     }
     return roles.map((role) => (
         <TouchableOpacity
@@ -617,7 +617,7 @@ export default function WorkspaceSettings() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Paramètres</Text>
+        <Text style={styles.headerTitle}>Settings</Text>
       </View>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.logoContainer}>
@@ -634,9 +634,9 @@ export default function WorkspaceSettings() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.title}>Paramètres du workspace</Text>
+        <Text style={styles.title}>Workspace Settings</Text>
 
-        <Text style={styles.label}>Nom</Text>
+        <Text style={styles.label}>Name</Text>
         <TextInput
           style={styles.input}
           value={workspace.name}
@@ -651,7 +651,7 @@ export default function WorkspaceSettings() {
           onChangeText={(t) => setWorkspace((w) => ({ ...w, description: t }))}
         />
 
-        <Text style={styles.label}>Visibilité</Text>
+        <Text style={styles.label}>Visibility</Text>
         <View style={styles.row}>
           {(["Public", "Private"] as const).map((opt) => (
             <TouchableOpacity
@@ -682,7 +682,7 @@ export default function WorkspaceSettings() {
           disabled={loading}
         >
           <Text style={styles.buttonText}>
-            {loading ? "Enregistrement..." : "Enregistrer"}
+            {loading ? "Saving..." : "Save Settings"}
           </Text>
         </TouchableOpacity>
 
@@ -692,16 +692,16 @@ export default function WorkspaceSettings() {
           disabled={loadingDelete}
         >
           <Text style={styles.deleteButtonText}>
-            {loadingDelete ? "Suppression..." : "Supprimer le workspace"}
+            {loadingDelete ? "Deleting..." : "Delete Workspace"}
           </Text>
         </TouchableOpacity>
 
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Rôles</Text>
+          <Text style={styles.sectionTitle}>Roles</Text>
           {roles.map((role) => (
             <View key={role.id} style={styles.roleItem}>
               <Text style={styles.roleName}>{role.name}</Text>
-              <Text style={styles.roleHierarchy}>Hiérarchie: {role.hierarchy}</Text>
+              <Text style={styles.roleHierarchy}>Hierarchy: {role.hierarchy}</Text>
               <TouchableOpacity
                 style={styles.editIcon}
                 onPress={() => {
@@ -716,13 +716,13 @@ export default function WorkspaceSettings() {
           ))}
           <TextInput
             style={styles.input}
-            placeholder="Nom du rôle"
+            placeholder="Role name"
             value={newRole.name}
             onChangeText={(text) => setNewRole((prev) => ({ ...prev, name: text }))}
           />
           <TextInput
             style={styles.input}
-            placeholder="Hiérarchie"
+            placeholder="Hierarchy"
             keyboardType="numeric"
             value={newRole.hierarchy ? newRole.hierarchy.toString() : ''}
             onChangeText={(text) => {
@@ -731,17 +731,17 @@ export default function WorkspaceSettings() {
             }}
           />
           <TouchableOpacity style={styles.button} onPress={addRole}>
-            <Text style={styles.buttonText}>Ajouter un rôle</Text>
+            <Text style={styles.buttonText}>Add Role</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Assignation de rôles</Text>
-          <Text style={styles.label}>Sélectionner un rôle</Text>
+          <Text style={styles.sectionTitle}>Role Assignment</Text>
+          <Text style={styles.label}>Select a role</Text>
           {renderRoles()}
           {selectedRoleId && (
             <View>
-              <Text style={styles.label}>Non-membres disponibles</Text>
+              <Text style={styles.label}>Available Non-Members</Text>
               {nonMembers.map((nonMember) => (
                 <View key={nonMember.id} style={styles.memberItem}>
                   <Text>{nonMember.username}</Text>
@@ -756,12 +756,12 @@ export default function WorkspaceSettings() {
                       setNonMembers((prev) => prev.filter((nm) => nm.id !== nonMember.id));
                     }}
                   >
-                    <Text style={styles.addButtonText}>Ajouter</Text>
+                    <Text style={styles.addButtonText}>Add</Text>
                   </TouchableOpacity>
                 </View>
               ))}
 
-              <Text style={styles.label}>Membres du rôle</Text>
+              <Text style={styles.label}>Role Members</Text>
               {roleMembers.map((member) => (
                 <View key={member.id} style={styles.memberItem}>
                   <Text>{member.username}</Text>
@@ -772,7 +772,7 @@ export default function WorkspaceSettings() {
                       setRoleMembers((prev) => prev.filter((m) => m.id !== member.id));
                     }}
                   >
-                    <Text style={styles.removeButtonText}>Retirer</Text>
+                    <Text style={styles.removeButtonText}>Remove</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -789,25 +789,25 @@ export default function WorkspaceSettings() {
           <View style={styles.modalContainer}>
             <View style={styles.smallModalContent}>
               <ScrollView contentContainerStyle={styles.scrollableModal}>
-                <Text style={styles.modalTitle}>Modifier le rôle</Text>
+                <Text style={styles.modalTitle}>Edit Role</Text>
                 <TextInput
                   style={styles.input}
                   value={editedRoleName}
                   onChangeText={setEditedRoleName}
-                  placeholder="Nom du rôle"
+                  placeholder="Role name"
                 />
                 {renderPermissions()}
                 <TouchableOpacity
                   style={styles.saveButton}
                   onPress={updateRolePermissions}
                 >
-                  <Text style={styles.saveButtonText}>Enregistrer</Text>
+                  <Text style={styles.saveButtonText}>Save</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => setEditRoleModalVisible(false)}
                 >
-                  <Text style={styles.deleteButtonText}>Annuler</Text>
+                  <Text style={styles.deleteButtonText}>Cancel</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>

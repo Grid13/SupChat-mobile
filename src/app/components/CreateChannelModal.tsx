@@ -30,7 +30,7 @@ const CreateChannelModal: React.FC<Props> = ({ visible, onClose, onCreated, work
   const [loading, setLoading] = useState(false);
 
   const createChannel = async () => {
-    if (!name.trim()) return Alert.alert("Champ requis", "Le nom est obligatoire");
+    if (!name.trim()) return Alert.alert("Required Field", "Name is mandatory");
 
     try {
       setLoading(true);
@@ -47,15 +47,15 @@ const CreateChannelModal: React.FC<Props> = ({ visible, onClose, onCreated, work
 
       if (!response.ok) {
         const error = await response.text();
-        throw new Error(error || "Erreur réseau");
+        throw new Error(error || "Network error");
       }
-      Alert.alert("Succès ✅", "Channel créé !");
+      Alert.alert("Success ✅", "Channel created!");
       setName("");
       setVisibility("Public");
       onCreated();
       onClose();
     } catch (err: any) {
-      Alert.alert("Erreur", err.message);
+      Alert.alert("Error", err.message);
     } finally {
       setLoading(false);
     }
@@ -65,17 +65,17 @@ const CreateChannelModal: React.FC<Props> = ({ visible, onClose, onCreated, work
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          <Text style={styles.title}>Nouveau Channel</Text>
+          <Text style={styles.title}>New Channel</Text>
 
           <TextInput
-            placeholder="Nom du channel"
+            placeholder="Channel Name"
             style={styles.input}
             value={name}
             onChangeText={setName}
           />
 
           <View style={styles.visibilityContainer}>
-            <Text style={styles.label}>Visibilité :</Text>
+            <Text style={styles.label}>Visibility:</Text>
             <TouchableOpacity
               style={[
                 styles.visibilityOption,
@@ -98,12 +98,12 @@ const CreateChannelModal: React.FC<Props> = ({ visible, onClose, onCreated, work
 
           <View style={styles.actions}>
             <TouchableOpacity style={styles.cancel} onPress={onClose}>
-              <Text style={styles.cancelText}>Annuler</Text>
+              <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.confirm} onPress={createChannel} disabled={loading}>
               <Ionicons name="add" size={18} color="#fff" />
-              <Text style={styles.confirmText}>{loading ? "Création..." : "Créer"}</Text>
+              <Text style={styles.confirmText}>{loading ? "Creating..." : "Create"}</Text>
             </TouchableOpacity>
           </View>
         </View>

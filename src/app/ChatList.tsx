@@ -178,7 +178,7 @@ const ChatList: React.FC = () => {
       <Modal visible={newMessageVisible} animationType="slide" onRequestClose={() => setNewMessageVisible(false)}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Nouvelle conversation</Text>
+            <Text style={styles.modalTitle}> New Message</Text>
             <View style={styles.headerActions}>
               <TouchableOpacity onPress={() => setNewMessageVisible(false)}>
                 <Icon name="close" size={24} />

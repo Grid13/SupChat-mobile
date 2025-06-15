@@ -59,7 +59,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
     (async () => {
       const { status } = await requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission requise", "Autorisez l'accès à la galerie pour ajouter une image.");
+        Alert.alert("Permission required", "Please allow access to the gallery to add an image.");
       }
     })();
   }, []);
@@ -99,12 +99,12 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
 
   const handleJoin = async (workspace: AvailableWorkspace) => {
     Alert.alert(
-      "Rejoindre ce workspace ?",
-      `Tu vas rejoindre "${workspace.name}".`,
+      "Join this workspace?",
+      `You are about to join \"${workspace.name}\".`,
       [
-        { text: "Annuler", style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: "Rejoindre",
+          text: "Join",
           onPress: async () => {
             try {
               setLoadingJoinList(true);
@@ -112,8 +112,8 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
                 `http://${ipAddress}:5263/api/Workspace/${workspace.id}/Join`,
                 { method: "POST", headers: { Accept: "text/plain", Authorization: `Bearer ${token}` } }
               );
-              if (!res.ok) throw new Error("Erreur lors de la demande de rejoindre.");
-              Alert.alert("Tu as rejoint le workspace !", workspace.name);
+              if (!res.ok) throw new Error("Error joining the workspace.");
+              Alert.alert("You've joined the workspace!", workspace.name);
               onClose(); onCreated();
               setTimeout(() => router.push({
                 pathname: "/WorkspaceChat",
@@ -125,7 +125,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
                 },
               }), 200);
             } catch (err: any) {
-              Alert.alert("Erreur", err.message || "Impossible de rejoindre.");
+              Alert.alert("Error", err.message || "Unable to join.");
             } finally { setLoadingJoinList(false); }
           },
         },
@@ -169,19 +169,19 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
       );
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(text || 'Erreur upload image');
+        throw new Error(text || 'Error uploading image');
       }
       const data = await res.json();
       setProfilePictureId(data.id);
     } catch (err: any) {
-      Alert.alert('Erreur', err.message || 'Impossible d’uploader l’image.');
+      Alert.alert('Error', err.message || 'Unable to upload the image.');
       setSelectedImage(null);
     } finally { setUploadingImage(false); }
   };
 
   const createWorkspace = async () => {
-    if (!name.trim()) return Alert.alert("Champ requis", "Le nom est obligatoire");
-    if (uploadingImage) return Alert.alert("Veuillez patienter", "L'image est en cours d'upload.");
+    if (!name.trim()) return Alert.alert("Required Field", "Name is mandatory");
+    if (uploadingImage) return Alert.alert("Please wait", "Image is being uploaded.");
     try {
       setLoading(true);
       const body: any = { name: name.trim(), visibility };
@@ -199,14 +199,14 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
 
       if (!response.ok) {
         const error = await response.text();
-        throw new Error(error || "Erreur réseau");
+        throw new Error(error || "Network error");
       }
 
-      Alert.alert("Succès ✅", "Workspace créé !");
+      Alert.alert("Success ✅", "Workspace created!");
       setName(""); setVisibility("Public"); setSelectedImage(null); setProfilePictureId(null);
       onCreated(); onClose();
     } catch (err: any) {
-      Alert.alert("Erreur", err.message);
+      Alert.alert("Error", err.message);
     } finally { setLoading(false); }
   };
 
@@ -223,7 +223,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
               onPress={() => setTab("create")}
             >
               <Text style={[styles.tabText, tab === "create" && styles.activeTabText]}>
-                Créer un workspace
+                Create a workspace
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -231,7 +231,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
               onPress={() => setTab("join")}
             >
               <Text style={[styles.tabText, tab === "join" && styles.activeTabText]}>
-                Rejoindre un workspace
+                Join a workspace
               </Text>
             </TouchableOpacity>
           </View>
@@ -239,26 +239,26 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
           {/* CREATE */}
           {tab === "create" && (
             <>
-              <Text style={styles.title}>Nouveau Workspace</Text>
+              <Text style={styles.title}>New Workspace</Text>
               <TouchableOpacity style={styles.imagePicker} onPress={pickImage} disabled={uploadingImage}>
                 {selectedImage ? (
                   <Image source={{ uri: selectedImage }} style={styles.previewImage} />
                 ) : (
                   <View style={styles.imagePlaceholder}>
                     <Ionicons name="image-outline" size={40} color="#777" />
-                    <Text style={{ marginTop: 4, color: "#777" }}>Ajouter une image</Text>
+                    <Text style={{ marginTop: 4, color: "#777" }}>Add an image</Text>
                   </View>
                 )}
                 {uploadingImage && <ActivityIndicator style={StyleSheet.absoluteFill} />}
               </TouchableOpacity>
               <TextInput
-                placeholder="Nom du workspace"
+                placeholder="Workspace Name"
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
               />
               <View style={styles.visibilityContainer}>
-                <Text style={styles.label}>Visibilité :</Text>
+                <Text style={styles.label}>Visibility :</Text>
                 <TouchableOpacity
                   style={[
                     styles.visibilityOption,
@@ -280,7 +280,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
               </View>
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.cancel} onPress={onClose}>
-                  <Text style={styles.cancelText}>Annuler</Text>
+                  <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.confirm}
@@ -289,7 +289,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
                 >
                   <Ionicons name="add" size={18} color="#fff" />
                   <Text style={styles.confirmText}>
-                    {loading ? "Création..." : "Créer"}
+                    {loading ? "Creating..." : "Create"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -299,12 +299,12 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
           {/* JOIN */}
           {tab === "join" && (
             <View style={{ flex: 1, minHeight: 300 }}>
-              <Text style={styles.title}>Workspaces publics disponibles</Text>
+              <Text style={styles.title}>Available Public Workspaces</Text>
               {loadingJoinList ? (
                 <ActivityIndicator size="large" style={{ marginVertical: 20 }} />
               ) : available.length === 0 ? (
                 <Text style={{ color: "#999", marginVertical: 16, textAlign: "center" }}>
-                  Aucun workspace public trouvé。
+                  No public workspaces found.
                 </Text>
               ) : (
                 <ScrollView style={{ maxHeight: 290 }}>
@@ -332,7 +332,7 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
               )}
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.cancel} onPress={onClose}>
-                  <Text style={styles.cancelText}>Fermer</Text>
+                  <Text style={styles.cancelText}>Close</Text>
                 </TouchableOpacity>
               </View>
             </View>

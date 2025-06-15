@@ -19,7 +19,6 @@ import { RootState } from "./store/store";
 import MessageBubble from "./components/Message/MessageBubble";
 import ChatInput from "./components/Message/ChatInput";
 import DropdownMenu from "./components/DropdownMenu";
-import WorkspaceInfoSheet from "./components/WorkspaceInfoSheet";
 import WorkspaceDrawer, { Channel } from "./components/WorkspaceDrawer";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { format } from "date-fns";
@@ -81,7 +80,6 @@ const WorkspaceChat: React.FC = () => {
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [infoVisible, setInfoVisible] = useState(false);
   const [navDrawerVisible, setNavDrawerVisible] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: number; text: string } | null>(null);
@@ -93,6 +91,10 @@ const WorkspaceChat: React.FC = () => {
     isSender: boolean;
   } | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   let workspaceAvatarUrl =
       typeof avatar === "string" && avatar
@@ -142,7 +144,6 @@ const WorkspaceChat: React.FC = () => {
   }, [fetchChannels]);
 
   const handleAvatarPress = () => {
-    setInfoVisible(true);
   };
 
   const onHandlerStateChange = ({ nativeEvent }: any) => {
@@ -644,140 +645,252 @@ const WorkspaceChat: React.FC = () => {
     token: token || "",
   });
 
+  const fetchChannelName = async (channelId: number, cache: Record<number, string>, token: string): Promise<string> => {
+    if (cache[channelId]) return cache[channelId];
+    try {
+      const res = await fetch(`http://${ipAddress}:5263/api/Channel/${channelId}`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error(`Failed to fetch channel name for ID ${channelId}`);
+      const data = await res.json();
+      cache[channelId] = data.name;
+      return data.name;
+    } catch (error) {
+      console.error(error);
+      return `Channel ${channelId}`;
+    }
+  };
+
+  const messageRefs = useRef<{ [id: number]: React.RefObject<View | null> }>({});
+
+  const handleSearch = async (text: string) => {
+    setSearchText(text);
+    if (!id || !text.trim() || !token) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const url = `http://${ipAddress}:5263/api/Workspace/${id}/UnifiedSearch?search=${encodeURIComponent(text)}&pageNumber=1&pageSize=10`;
+      const res = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const body = await res.text();
+      if (!res.ok) {
+        setSearchResults([]);
+        return;
+      }
+      const data = JSON.parse(body);
+      const channelCache: Record<number, string> = {};
+      const enrichedResults = await Promise.all(
+        (data.messageList || []).map(async (msg: any) => {
+          const channelName = await fetchChannelName(msg.channelId, channelCache, token);
+          return {
+            ...msg,
+            channelName,
+          };
+        })
+      );
+      setSearchResults(enrichedResults);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const scrollToMessage = (msgId: number) => {
+    const ref = messageRefs.current[msgId];
+    if (ref && ref.current && scrollViewRef.current) {
+      ref.current.measureLayout(
+        scrollViewRef.current.getInnerViewNode(),
+        (x: number, y: number) => {
+          scrollViewRef.current?.scrollTo({ y, animated: true });
+        },
+        () => {}
+      );
+    }
+    setShowSearch(false);
+    setSearchText('');
+    setSearchResults([]);
+  };
+
   const renderMainContent = () => (
-      <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
-      >
-        <View style={styles.container}>
-          <WorkspaceDrawer
-              visible={navDrawerVisible}
-              onClose={() => setNavDrawerVisible(false)}
-              onChannelPress={(ch) => {
-                setSelectedChannel(ch);
-                setNavDrawerVisible(false);
-              }}
-              workspaceId={Number(id)}
-              workspaceName={name as string}
-              channels={channels}
-              loading={channelsLoading}
-              selectedChannelId={selectedChannel?.id}
-              onChannelCreated={fetchChannels}
-          />
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} />
-            </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
+    >
+      <View style={styles.container}>
+        <WorkspaceDrawer
+          visible={navDrawerVisible}
+          onClose={() => setNavDrawerVisible(false)}
+          onChannelPress={(ch) => {
+            setSelectedChannel(ch);
+            setNavDrawerVisible(false);
+          }}
+          workspaceId={Number(id)}
+          workspaceName={name as string}
+          channels={channels}
+          loading={channelsLoading}
+          selectedChannelId={selectedChannel?.id}
+          onChannelCreated={fetchChannels}
+        />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} />
+          </TouchableOpacity>
 
-            {/* Bouton menu hamburger pour le web */}
-            {Platform.OS === 'web' && (
-                <TouchableOpacity onPress={toggleNavDrawer} style={{ marginRight: 12 }}>
-                  <Ionicons name="menu" size={24} />
-                </TouchableOpacity>
-            )}
+          {Platform.OS === 'web' && (
+            <TouchableOpacity onPress={toggleNavDrawer} style={{ marginRight: 12 }}>
+              <Ionicons name="menu" size={24} />
+            </TouchableOpacity>
+          )}
 
-            <TouchableOpacity
-                onPress={handleAvatarPress}
-                activeOpacity={0.7}
-                style={{ padding: 5 }}
-            >
-              <Image source={{ uri: workspaceAvatar }} style={styles.avatar} />
-            </TouchableOpacity>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{name}</Text>
-              <Text style={styles.channelName}>
-                {selectedChannel?.name || "Choisir un channel"}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ marginLeft: 10 }}>
-              <MaterialIcons name="more-vert" size={22} />
-            </TouchableOpacity>
-          </View>
-          <WorkspaceInfoSheet
-              visible={infoVisible}
-              onClose={() => setInfoVisible(false)}
-              workspaceName={typeof name === "string" ? name : ""}
-              workspaceId={Number(id)}
-          />
-          <DropdownMenu
-              visible={menuVisible}
-              onClose={() => setMenuVisible(false)}
-              workspaceId={Number(id)}
-          />
-          <ScrollView
-              ref={scrollViewRef}
-              contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
-              keyboardShouldPersistTaps="handled"
+          <TouchableOpacity
+            onPress={handleAvatarPress}
+            activeOpacity={0.7}
+            style={{ padding: 5 }}
           >
-            {messagesLoading ? (
-                <Text style={styles.loadingText}>Chargement…</Text>
-            ) : (
-                [...new Map(messages.map((msg) => [msg.type === "message" ? msg.id : `${msg.type}-${msg.label}`, msg])).values()].map((msg, i) => {
-                  if (msg.type === "separator") {
-                    return (
-                        <View key={`separator-${i}`} style={styles.separatorContainer}>
-                          <View style={styles.line} />
-                          <Text style={styles.separatorText}>{msg.label}</Text>
-                          <View style={styles.line} />
-                        </View>
-                    );
-                  } else if (msg.type === "message") {
-                    return (
-                        <MessageBubble
-                            key={`message-${msg.id}`}
-                            {...msg}
-                            onLongPress={() =>
-                                onMessageLongPress(msg.id, msg.text, msg.isSender)
-                            }
-                        />
-                    );
-                  }
-                })
-            )}
-          </ScrollView>
-          <ChatInput
-              onSend={handleSend}
-              onPickImage={pickImage}
-              replyTo={replyTo}
-              onCancelReply={() => setReplyTo(null)}
-              editing={editing}
-              onSaveEdit={(text) => saveEditedMessage(text)}
-              onCancelEdit={() => setEditing(null)}
-          />
-          <MessageActionsModal
-              visible={messageDrawerVisible}
-              onClose={onCancelFromDrawer}
-              onReply={onReplyFromDrawer}
-              onEdit={onEditFromDrawer}
-              onDelete={onDeleteFromDrawer}
-              onReaction={() => setShowEmojiPicker(true)}
-              showEditDelete={drawerMessage?.isSender}
-          />
-          <EmojiPicker
-              onEmojiSelected={(emoji) => {
-                setShowEmojiPicker(false);
-                if (drawerMessage) {
-                  onAddReactionFromDrawer(emoji);
-                }
-              }}
-              open={showEmojiPicker}
-              onClose={() => setShowEmojiPicker(false)}
-          />
+            <Image source={{ uri: workspaceAvatar }} style={styles.avatar} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>{name}</Text>
+            <Text style={styles.channelName}>
+              {selectedChannel?.name || "Choisir un channel"}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => setShowSearch(true)}>
+            <Ionicons name="search" size={22} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ marginLeft: 10 }}>
+            <MaterialIcons name="more-vert" size={22} />
+          </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+        <DropdownMenu
+          visible={menuVisible}
+          onClose={() => setMenuVisible(false)}
+          workspaceId={Number(id)}
+        />
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {messagesLoading ? (
+            <Text style={styles.loadingText}>Chargement…</Text>
+          ) : (
+            [...new Map(messages.map((msg) => [msg.type === "message" ? msg.id : `${msg.type}-${msg.label}`, msg])).values()].map((msg, i) => {
+              if (msg.type === "separator") {
+                return (
+                  <View key={`separator-${i}`} style={styles.separatorContainer}>
+                    <View style={styles.line} />
+                    <Text style={styles.separatorText}>{msg.label}</Text>
+                    <View style={styles.line} />
+                  </View>
+                );
+              } else if (msg.type === "message") {
+                return (
+                  <MessageBubble
+                    key={`message-${msg.id}`}
+                    {...msg}
+                    onLongPress={() =>
+                      onMessageLongPress(msg.id, msg.text, msg.isSender)
+                    }
+                  />
+                );
+              }
+            })
+          )}
+        </ScrollView>
+        <ChatInput
+          onSend={handleSend}
+          onPickImage={pickImage}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          editing={editing}
+          onSaveEdit={(text) => saveEditedMessage(text)}
+          onCancelEdit={() => setEditing(null)}
+        />
+        <MessageActionsModal
+          visible={messageDrawerVisible}
+          onClose={onCancelFromDrawer}
+          onReply={onReplyFromDrawer}
+          onEdit={onEditFromDrawer}
+          onDelete={onDeleteFromDrawer}
+          onReaction={() => setShowEmojiPicker(true)}
+          showEditDelete={drawerMessage?.isSender}
+        />
+        <EmojiPicker
+          onEmojiSelected={(emoji) => {
+            setShowEmojiPicker(false);
+            if (drawerMessage) {
+              onAddReactionFromDrawer(emoji);
+            }
+          }}
+          open={showEmojiPicker}
+          onClose={() => setShowEmojiPicker(false)}
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 
   return (
-      <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-        {Platform.OS !== 'web' && PanGestureHandler ? (
-            <PanGestureHandler onHandlerStateChange={onHandlerStateChange} activeOffsetX={10}>
-              {renderMainContent()}
-            </PanGestureHandler>
-        ) : (
-            renderMainContent()
-        )}
-      </SafeAreaView>
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      {Platform.OS !== 'web' && PanGestureHandler ? (
+        <PanGestureHandler onHandlerStateChange={onHandlerStateChange} activeOffsetX={10}>
+          {renderMainContent()}
+        </PanGestureHandler>
+      ) : (
+        renderMainContent()
+      )}
+      {showSearch && (
+        <View style={{ flexDirection: 'column', backgroundColor: '#f5f5f5', padding: 8, position: 'absolute', top: 110, left: 0, right: 0, zIndex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => setShowSearch(false)} style={{ padding: 8 }}>
+              <Text style={{ fontSize: 18 }}>✕</Text>
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+                <TextInput
+                  autoFocus
+                  value={searchText}
+                  onChangeText={handleSearch}
+                  placeholder="Tapez un mot-clé..."
+                  style={{ fontSize: 16, padding: 0 }}
+                />
+              </View>
+            </View>
+          </View>
+          {searchLoading && <Text style={{ marginTop: 8, color: '#888' }}>Recherche…</Text>}
+          {!searchLoading && searchResults.length > 0 && (
+            <View style={{ marginTop: 8, backgroundColor: '#fff', borderRadius: 8 }}>
+              {searchResults.map((msg, i) => (
+                <TouchableOpacity
+                  key={msg.id || i}
+                  onPress={() => scrollToMessage(msg.id)}
+                  style={{ padding: 10, borderBottomWidth: i < searchResults.length - 1 ? 1 : 0, borderColor: '#eee' }}
+                >
+                  <Text numberOfLines={2} style={{ fontSize: 15 }}>{msg.content}</Text>
+                  <Text style={{ fontSize: 12, color: '#888' }}>
+                    {`${msg.channelName}, ${msg.senderApplicationUserUsername}`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          {!searchLoading && searchText && searchResults.length === 0 && (
+            <Text style={{ marginTop: 8, color: '#888' }}>Aucun résultat</Text>
+          )}
+        </View>
+      )}
+    </SafeAreaView>
   );
 };
 

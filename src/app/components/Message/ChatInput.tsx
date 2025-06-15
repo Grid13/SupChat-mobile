@@ -58,19 +58,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <View>
-      {/* Si on est en mode « répondre » ET PAS en mode édition, on affiche le bandeau « Répondre à » */}
       {replyTo && !editing && (
         <View style={styles.replyContainer}>
           <Text style={[styles.replyText, { fontSize: 16, letterSpacing: 0 }]} numberOfLines={1}>
-            Répondre à : {replyTo.text}
+            Reply to: {replyTo.text}
           </Text>
           <TouchableOpacity onPress={onCancelReply} style={styles.cancelButton}>
             <Text style={[styles.cancelText, { fontSize: 18, letterSpacing: 0 }]}>×</Text>
           </TouchableOpacity>
         </View>
       )}
-
-      {/* Si on est en mode édition, on affiche un bandeau spécial */}
       {editing && (
         <View style={[styles.replyContainer, { backgroundColor: '#ffeeba' }]}>
           <Text style={[styles.replyText, { fontWeight: 'bold', fontSize: 16, letterSpacing: 0 }]} numberOfLines={1}>
@@ -89,13 +86,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <Icon name="image" size={26} color="#5C6BC0" />
           </TouchableOpacity>
         )}
-        <TouchableOpacity onPress={cancelAllModes} disabled={!editing && !replyTo}>
-          <Icon
-            name={editing || replyTo ? 'close-circle-outline' : 'plus-circle-outline'}
-            size={28}
-            color={editing || replyTo ? '#E53935' : '#5C6BC0'}
-          />
-        </TouchableOpacity>
         <TextInput
           style={[
             styles.input,

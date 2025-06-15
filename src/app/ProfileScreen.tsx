@@ -1,4 +1,3 @@
-
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 import React, { useEffect, useState } from "react";
@@ -479,14 +478,6 @@ const SettingsScreen = () => {
           <Text style={styles.sectionTitle}>Custom Information</Text>
           {renderRow("Email", profile?.email)}
           {renderRow("Theme", profile?.theme)}
-        </View>
-
-        {/* NOTIFICATIONS */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          {renderSwitch("Disable notifications", disableNotif, setDisableNotif)}
-          {renderSwitch("Push notifications", pushNotif, setPushNotif)}
-          {renderSwitch("Email notifications", emailNotif, setEmailNotif)}
         </View>
 
         {/* SECURITY */}

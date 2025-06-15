@@ -36,34 +36,34 @@ const MessageActionsModal: React.FC<MessageActionsModalProps> = ({
         onPress={onClose}
       />
       <View style={styles.drawerContainer}>
-        <Text style={styles.drawerTitle}>Que voulez-vous faire ?</Text>
+        <Text style={styles.drawerTitle}>What would you like to do?</Text>
 
         <TouchableOpacity style={styles.drawerButton} onPress={onReply}>
-          <Text style={styles.drawerButtonText}>Répondre</Text>
+          <Text style={styles.drawerButtonText}>Reply</Text>
         </TouchableOpacity>
 
         {showEditDelete && (
           <>
             <TouchableOpacity style={styles.drawerButton} onPress={onEdit}>
-              <Text style={styles.drawerButtonText}>Modifier</Text>
+              <Text style={styles.drawerButtonText}>Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.drawerButton, styles.deleteButton]}
               onPress={onDelete}
             >
               <Text style={[styles.drawerButtonText, styles.deleteText]}>
-                Supprimer
+                Delete
               </Text>
             </TouchableOpacity>
           </>
         )}
 
         <TouchableOpacity style={styles.drawerButton} onPress={onReaction}>
-          <Text style={styles.drawerButtonText}>Ajouter une réaction</Text>
+          <Text style={styles.drawerButtonText}>Add a reaction</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.drawerButton} onPress={onClose}>
-          <Text style={styles.drawerButtonText}>Annuler</Text>
+          <Text style={styles.drawerButtonText}>Cancel</Text>
         </TouchableOpacity>
       </View>
     </Modal>

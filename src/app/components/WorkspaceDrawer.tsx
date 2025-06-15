@@ -16,6 +16,7 @@ import { useSelector } from "react-redux";
 import CreateChannelModal from "./CreateChannelModal";
 import { RootState } from "../store/store";
 import dotenv from 'dotenv';
+import { useProfileImage } from '../hooks/useProfileImage';
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
@@ -59,6 +60,13 @@ const WorkspaceDrawer: React.FC<Props> = ({
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]); 
   const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token); 
+  const workspaceAvatar = useProfileImage(
+    `http://${ipAddress}:5263/api/Attachment/${workspaceId}/ProfilePicture`,
+    token || ''
+  );
+
+  console.log('Workspace Avatar URL:', `http://${ipAddress}:5263/api/Attachment/${workspaceId}/ProfilePicture`);
+  console.log('Workspace Avatar:', workspaceAvatar);
 
   if (!visible) return null;
 
@@ -145,10 +153,7 @@ const WorkspaceDrawer: React.FC<Props> = ({
         {/* Workspace info */}
         <View style={styles.workspaceInfo}>
           <Image
-            source={{
-              uri:
-                "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=facearea&w=80&h=80",
-            }}
+            source={{ uri: workspaceAvatar || undefined }}
             style={styles.workspaceAvatar}
           />
           <View>
