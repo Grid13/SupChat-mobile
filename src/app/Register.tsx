@@ -13,8 +13,11 @@ import { useRouter } from "expo-router";
 import { useDispatch } from "react-redux";
 import dotenv from "dotenv";
 import { loginSuccess } from "./store/authSlice";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
+WebBrowser.maybeCompleteAuthSession();
 
 const Register = () => {
   const router = useRouter();
@@ -26,15 +29,9 @@ const Register = () => {
   const [confirm, setConfirm] = useState("");
 
   useEffect(() => {
-    // Generate random values for testing
     const randomUserName = `user_${Math.floor(Math.random() * 10000)}`;
     const randomEmail = `test_${Math.floor(Math.random() * 10000)}@example.com`;
     const randomPassword = `Pass${Math.floor(Math.random() * 10000)}!`;
-
-    console.log("Generated random values:");
-    console.log("Username:", randomUserName);
-    console.log("Email:", randomEmail);
-    console.log("Password:", randomPassword);
 
     setUserName(randomUserName);
     setEmail(randomEmail);
@@ -43,7 +40,6 @@ const Register = () => {
   }, []);
 
   const handleRegister = async () => {
-    // Vérification des champs requis
     if (!userName || !email || !password || !confirm) {
       Alert.alert("Champs manquants", "Veuillez remplir tous les champs.");
       return;
@@ -68,10 +64,7 @@ const Register = () => {
         body: JSON.stringify(body),
       });
 
-      console.log("Response status:", response.status);
-
       if (response.status === 201 || (response.ok && (await response.text()) === "true")) {
-        // Automatically log in the user after successful registration
         const formBody = new URLSearchParams();
         formBody.append("email", email);
         formBody.append("password", password);
@@ -88,7 +81,7 @@ const Register = () => {
 
         const loginText = await loginResponse.text();
 
-        if (!loginResponse.ok) throw new Error("Échec de la connexion après l'inscription.");
+        if (!loginResponse.ok) throw new Error("\u00c9chec de la connexion apr\u00e8s l'inscription.");
 
         const loginData = JSON.parse(loginText);
         const token = loginData?.accessToken;
@@ -97,16 +90,41 @@ const Register = () => {
           dispatch(loginSuccess({ user: { email }, token }));
           router.push("/(tabs)/Chat");
         } else {
-          throw new Error("Échec de la récupération du token après l'inscription.");
+          throw new Error("\u00c9chec de la r\u00e9cup\u00e9ration du token apr\u00e8s l'inscription.");
         }
       } else {
         const errorText = await response.text();
-        console.error("Erreur lors de l'inscription :", errorText);
         Alert.alert("Erreur d'inscription", errorText || "Une erreur est survenue.");
       }
     } catch (error) {
-      console.error("Erreur lors de l'inscription :", error);
       Alert.alert("Erreur", "Une erreur est survenue lors de l'inscription.");
+    }
+  };
+
+  const handleGitHubRedirectLogin = async () => {
+    try {
+      const redirectUri = Linking.createURL("ChatList");
+      const loginUrl = `http://${ipAddress}:5263/api/Authorization/login/github?returnUrl=${encodeURIComponent(
+        redirectUri
+      )}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(loginUrl, redirectUri);
+
+      if (result.type === "success" && result.url) {
+        const url = new URL(result.url);
+        const token = url.searchParams.get("ACCESS_TOKEN");
+
+        if (token) {
+          dispatch(loginSuccess({ user: { email: "github_user" }, token }));
+          router.push("/(tabs)/Chat");
+        } else {
+          Alert.alert("GitHub Login", "No token found in response.");
+        }
+      } else {
+        Alert.alert("GitHub Login", "Authentication cancelled or failed.");
+      }
+    } catch (error: any) {
+      Alert.alert("GitHub Auth Error", error.message);
     }
   };
 
@@ -168,19 +186,12 @@ const Register = () => {
         </View>
 
         <View style={styles.socialRow}>
-          <TouchableOpacity style={styles.socialButton}>
+          <TouchableOpacity style={styles.socialButton} onPress={handleGitHubRedirectLogin}>
             <Image
-              source={{ uri: "https://img.icons8.com/color/48/google-logo.png" }}
+              source={{ uri: "https://img.icons8.com/ios-filled/50/github.png" }}
               style={styles.socialIcon}
             />
-            <Text style={styles.socialText}>Google</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.socialButton}>
-            <Image
-              source={{ uri: "https://img.icons8.com/fluency/48/facebook-new.png" }}
-              style={styles.socialIcon}
-            />
-            <Text style={styles.socialText}>Facebook</Text>
+            <Text style={styles.socialText}>GitHub</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -268,11 +279,10 @@ const styles = StyleSheet.create({
   },
   socialRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     gap: 10,
   },
   socialButton: {
-    flex: 1,
     flexDirection: "row",
     borderWidth: 1,
     borderColor: "#000",
@@ -281,6 +291,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 10,
     gap: 6,
+    flex: 1,
   },
   socialIcon: {
     width: 20,
