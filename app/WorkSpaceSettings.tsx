@@ -8,6 +8,8 @@ import {
   ScrollView,
   Alert,
   Image,
+  Modal,
+  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -16,7 +18,7 @@ import { RootState } from "./store/store";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useProfileImage } from "./hooks/useProfileImage";
-import optionsSections from "./Permission"; // Import permissions
+import optionsSections from "./Permission"; // Ensure permissions are imported
 import { Picker } from "@react-native-picker/picker"; // Import Picker
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -496,7 +498,7 @@ export default function WorkspaceSettings() {
     }
   };
 
-  const updateRole = async () => {
+  const updateRolePermissions = async () => {
     if (!roleToEdit) return;
 
     try {
@@ -533,52 +535,78 @@ export default function WorkspaceSettings() {
     }
   };
 
+  // Fetch permissions for a role
   const fetchRolePermissions = async (workspaceId: number, roleId: number) => {
     try {
-        console.log(`Fetching permissions for workspaceId: ${workspaceId}, roleId: ${roleId}`); // Log workspaceId and roleId
-        const response = await axios.get(`http://${ipAddress}:5263/api/Workspace/${workspaceId}/Roles/${roleId}/Permissions`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                accept: 'text/plain',
-            },
-        });
-        console.log('API response:', response.data); // Log API response
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching permissions:', error); // Log error details
-        return [];
+      const res = await fetch(
+        `http://${ipAddress}:5263/api/Workspace/${workspaceId}/Roles/${roleId}/Permissions`,
+        {
+          headers: {
+            Accept: "text/plain",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
+      return data.map((permission: { permissionId: number }) => permission.permissionId);
+    } catch (err) {
+      Alert.alert("Erreur", err instanceof Error ? err.message : "Impossible de charger les permissions du rôle");
+      return [];
     }
-};
+  };
 
-  useEffect(() => {
-    console.log('useEffect triggered with editRoleModalVisible:', editRoleModalVisible, 'selectedRoleId:', selectedRoleId); // Log initial state
-    if (editRoleModalVisible && selectedRoleId) { // Ensure fetch only occurs when modal is open and roleId is valid
-        console.log('Calling fetchRolePermissions for roleId:', selectedRoleId); // Log when fetch is called
-        const workspaceId = Number(id); // Replace with dynamic value
-        const roleId = selectedRoleId; // Replace with dynamic value
-        fetchRolePermissions(workspaceId, roleId).then((data) => {
-            console.log('Fetch successful, permissions:', data); // Log fetched permissions
-            setPermissions(data);
-            setEditedPermissions(data.map((permission: { permissionId: number }) => permission.permissionId)); // Update editedPermissions
-        }).catch((error) => {
-            console.error('Fetch failed:', error); // Log fetch error
-        });
-    } else {
-        console.log('Fetch not triggered, editRoleModalVisible:', editRoleModalVisible, 'selectedRoleId:', selectedRoleId); // Log why fetch is not triggered
-    }
-  }, [editRoleModalVisible, selectedRoleId, id, token]);
-
-  const openEditRoleModal = (roleId: number) => {
+  // Preselect permissions when opening the edit role modal
+  const openEditRoleModal = async (roleId: number) => {
     if (!roleId) {
-        console.error('Invalid roleId provided:', roleId); // Log invalid roleId
-        return;
+      console.error("Invalid roleId provided:", roleId);
+      return;
     }
-    console.log('Opening modal for roleId:', roleId); // Log roleId
-    setSelectedRoleId(roleId); // Set the selected role ID
-    setEditRoleModalVisible(true); // Open the modal
-};
+    try {
+      const preselectedPermissions = await fetchRolePermissions(Number(id), roleId);
+      setEditedPermissions(preselectedPermissions); // Preselect permissions
+      setRoleToEdit(roles.find((role) => role.id === roleId) || null); // Set role to edit
+      setEditedRoleName(roles.find((role) => role.id === roleId)?.name || ""); // Set role name
+      setSelectedRoleId(roleId);
+      setEditRoleModalVisible(true);
+    } catch (err) {
+      console.error("Failed to fetch permissions for role:", err);
+    }
+  };
 
-const handleEditRole = (roleId: number) => {
+  // Render permissions in the modal
+  const renderPermissions = () => {
+    return optionsSections.map((section) => (
+      <View key={section.title} style={styles.permissionSection}>
+        <Text style={styles.sectionTitle}>{section.title}</Text>
+        {section.options.map((option) => (
+          <TouchableOpacity
+            key={option.key}
+            style={[
+              styles.permissionOption,
+              Array.isArray(option.permission)
+                ? option.permission.every((p) => editedPermissions.includes(p)) && styles.permissionOptionActive
+                : editedPermissions.includes(option.permission) && styles.permissionOptionActive,
+            ]}
+            onPress={() => toggleEditedPermission(option.permission)}
+          >
+            <Text
+              style={[
+                styles.permissionOptionText,
+                (Array.isArray(option.permission)
+                  ? option.permission.every((p) => editedPermissions.includes(p))
+                  : editedPermissions.includes(option.permission)) && { color: "#000" },
+              ]}
+            >
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    ));
+  };
+
+  const handleEditRole = (roleId: number) => {
     if (!roleId) {
         console.error('Invalid roleId provided:', roleId); // Log invalid roleId
         return;
@@ -612,7 +640,7 @@ const handleEditRole = (roleId: number) => {
             <Text style={styles.optionText}>{role.name}</Text>
         </TouchableOpacity>
     ));
-};
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FC" }}>
@@ -783,50 +811,40 @@ const handleEditRole = (roleId: number) => {
             </View>
           )}
         </View>
-      </ScrollView>
 
-      {/* Modal for editing roles */}
-      {editRoleModalVisible && (
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Modifier le rôle</Text>
-            <TextInput
-              style={styles.input}
-              value={editedRoleName}
-              onChangeText={setEditedRoleName}
-              placeholder="Nom du rôle"
-            />
-            <Text style={styles.label}>Permissions actuelles</Text>
-            <ScrollView>
-              {editedPermissions.map((permissionId) => (
-                <Text key={permissionId} style={styles.permissionText}>
-                  Permission ID: {permissionId}
-                </Text>
-              ))}
-            </ScrollView>
-            <Text style={styles.label}>Ajouter une permission</Text>
-            <Picker
-              selectedValue={selectedPermission}
-              onValueChange={(itemValue) => setSelectedPermission(itemValue)}
-              style={styles.picker}
-            >
-              <Picker.Item label="Sélectionner une permission" value={null} />
-              {optionsSections.flatMap((section) =>
-                section.options.map((option) => (
-                  <Picker.Item
-                    key={option.key}
-                    label={option.label}
-                    value={Array.isArray(option.permission) ? option.permission[0] : option.permission}
-                  />
-                )))
-              }
-            </Picker>
-            <TouchableOpacity style={styles.button} onPress={addPermission}>
-              <Text style={styles.buttonText}>Ajouter la permission</Text>
-            </TouchableOpacity>
+        <Modal
+          visible={editRoleModalVisible}
+          transparent={true}
+          animationType="slide"
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.smallModalContent}>
+              <ScrollView contentContainerStyle={styles.scrollableModal}>
+                <Text style={styles.modalTitle}>Modifier le rôle</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editedRoleName}
+                  onChangeText={setEditedRoleName}
+                  placeholder="Nom du rôle"
+                />
+                {renderPermissions()}
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={updateRolePermissions}
+                >
+                  <Text style={styles.saveButtonText}>Enregistrer</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => setEditRoleModalVisible(false)}
+                >
+                  <Text style={styles.deleteButtonText}>Annuler</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      )}
+        </Modal>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -1006,12 +1024,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  modalContent: {
-    width: "80%",
+  smallModalContent: {
+    width: "90%",
+    maxHeight: "70%",
     backgroundColor: "#fff",
     padding: 20,
     borderRadius: 8,
     elevation: 5,
+  },
+  scrollableModal: {
+    paddingBottom: 20,
   },
   modalTitle: {
     fontSize: 18,
@@ -1051,5 +1073,21 @@ const styles = StyleSheet.create({
   permissionText: {
     flex: 1,
     fontSize: 14,
+  },
+  actionText: {
+    color: "#4F8CFF",
+    fontWeight: "500",
+  },
+  saveButton: {
+    backgroundColor: "#4CAF50",
+    borderRadius: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  saveButtonText: {
+    color: "#fff",
+    fontWeight: "600",
   },
 });
