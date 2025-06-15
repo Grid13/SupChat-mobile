@@ -118,9 +118,7 @@ const ChatList: React.FC = () => {
 
   const renderChatItem = ({ item }: { item: any }) => {
     const avatarUri = item.image || "https://ui-avatars.com/api/?name="+ encodeURIComponent(item.username || "User");
-    console.log("Rendering chat item:", item.firstName);
-    console.log("Avatar URI:", avatarUri);
-    
+
     return (
       <TouchableOpacity onPress={() => handlePress(item)}>
         <View style={styles.messageRow}>
@@ -136,9 +134,7 @@ const ChatList: React.FC = () => {
   };
 
   const renderNewUserItem = ({ item }: { item: any }) => {
-    console.log("Rendering new user item:", item.firstName);
     const avatarUri = item.image || "https://ui-avatars.com/api/?name=" + encodeURIComponent(item.firstName || "User");
-    console.log("Avatar URI:", avatarUri);
     return (
       <TouchableOpacity onPress={() => { handlePress(item); setNewMessageVisible(false); }}>
         <View style={styles.messageRow}>

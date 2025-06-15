@@ -149,8 +149,6 @@ export default function WorkspaceSettings() {
         aspect: [1, 1],
         quality: 0.8,
       });
-      console.log("ImagePicker result:", result);
-      console.log("Workspace id:", id); 
       if (!result.canceled && result.assets && result.assets[0]?.uri) {
         setLoading(true);
         const uri = result.assets[0].uri;
@@ -162,7 +160,6 @@ export default function WorkspaceSettings() {
           type: 'image/jpeg',
         } as any);
         const uploadUrl = 'http://'+ipAddress+':5263/api/Attachment?attachmentType=ProfilePicture';
-        console.log("Uploading image to Attachment endpoint...", uploadUrl);
         const res = await fetch(uploadUrl, {
           method: 'POST',
           headers:
@@ -172,18 +169,14 @@ export default function WorkspaceSettings() {
           },
           body: formData,
         });
-        console.log("Upload response status:", res.status);
         if (!res.ok) {
           const errorText = await res.text();
-          console.log("Upload failed:", errorText);
           Alert.alert("Erreur upload", errorText);
           throw new Error('Upload failed');
         }
         const data = await res.json();
-        console.log("Attachment upload response data:", data);
         if (data.id) {
           const patchUrl = `http://${ipAddress}:5263/api/Workspace/${id}/ProfilePicture`;
-          console.log("Patching workspace profile picture:", patchUrl, "with attachmentId:", data.id);
           const patchRes = await fetch(
             patchUrl,
             {
@@ -199,23 +192,18 @@ export default function WorkspaceSettings() {
               }),
             }
           );
-          console.log("PATCH response status:", patchRes.status);
           if (!patchRes.ok) {
             const patchError = await patchRes.text();
-            console.log("PATCH failed:", patchError);
             throw new Error('Failed to update workspace image');
           }
           setProfilePictureId(data.id);
           setImageUri(`http://${ipAddress}:5263/api/Attachment/${data.id}`);
           Alert.alert('Succès', 'Image du workspace mise à jour !');
         } else {
-          console.log("No id returned from attachment upload.");
         }
       } else {
-        console.log("ImagePicker canceled or no asset URI.");
       }
     } catch (err: any) {
-      console.log("Erreur dans pickImage:", err);
       Alert.alert("Erreur", "Impossible de sélectionner ou mettre à jour l'image");
     } finally {
       setLoading(false);
@@ -293,7 +281,6 @@ export default function WorkspaceSettings() {
   const avatarUri = avatarBase64 || imageUri || "https://ui-avatars.com/api/?name=" + encodeURIComponent(workspace.name || "Workspace");
 
   useEffect(() => {
-    console.log('Fetching roles for workspaceId:', id); 
     (async () => {
       try {
         const res = await fetch(`http://${ipAddress}:5263/api/Workspace/${id}/Roles`, {
@@ -304,7 +291,6 @@ export default function WorkspaceSettings() {
         });
         if (!res.ok) throw new Error(`Error ${res.status}`);
         const data: Role[] = await res.json();
-        console.log('Roles fetched successfully:', data); 
         setRoles(data);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
@@ -447,7 +433,6 @@ export default function WorkspaceSettings() {
     try {
       const requestUrl = `http://${ipAddress}:5263/api/Workspace/${workspace.id}/Roles/${selectedRoleId}/Members/${memberId}`;
 
-      console.log("Request URL:", requestUrl);
 
       const res = await fetch(requestUrl, {
         method: "DELETE",
@@ -456,8 +441,6 @@ export default function WorkspaceSettings() {
           Authorization: `Bearer ${token}`,
         },
       });
-
-      console.log("DELETE response status", res.status);
 
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
 
@@ -602,17 +585,14 @@ export default function WorkspaceSettings() {
         console.error('Invalid roleId provided:', roleId);
         return;
     }
-    console.log('Handle edit role for roleId:', roleId); 
     setSelectedRoleId(roleId); 
     setEditRoleModalVisible(true); 
 };
 
   const renderRoles = () => {
     if (roles.length === 0) {
-        console.log('No roles available to render'); 
         return <Text style={styles.label}>Aucun rôle disponible</Text>;
     }
-    console.log('Rendering roles:', roles); 
     return roles.map((role) => (
         <TouchableOpacity
             key={role.id}
@@ -621,7 +601,6 @@ export default function WorkspaceSettings() {
                 selectedRoleId === role.id && styles.optionActive,
             ]}
             onPress={() => {
-                console.log('Role selected:', role); 
                 setSelectedRoleId(role.id);
                 fetchRoleMembers(role.id);
                 fetchNonMembers(role.id);

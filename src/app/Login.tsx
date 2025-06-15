@@ -42,7 +42,6 @@ const Login = () => {
       formBody.append("email", email);
       formBody.append("password", password);
       formBody.append("grant_type", "password");
-      console.log("IP Address:", ipAddress);
       const response = await fetch(`http://${ipAddress}:5263/api/Authorization/Login`, {
         method: "POST",
         headers: {

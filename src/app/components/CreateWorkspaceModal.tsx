@@ -23,7 +23,6 @@ import { useRouter } from "expo-router";
 import dotenv from 'dotenv';
 
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
-console.log("IP Address:", ipAddress);
 
 type Props = {
   visible: boolean;
@@ -187,7 +186,6 @@ const CreateWorkspaceModal: React.FC<Props> = ({ visible, onClose, onCreated }) 
       setLoading(true);
       const body: any = { name: name.trim(), visibility };
       if (profilePictureId) body.profilePictureId = profilePictureId;
-      console.log("IP Address:", ipAddress);
 
       const response = await fetch(`http://${ipAddress}:5263/api/Workspace`, {
         method: "POST",

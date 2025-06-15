@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
   deleteIcon: {
     width: 20,
     height: 20,
-    tintColor: '#e74c3c', // red color for delete icon
+    tintColor: '#e74c3c', 
   },
   modalOverlay: {
     flex: 1,

@@ -27,7 +27,6 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({ visible, onClose, onViewInf
   
 
   
-  console.log('[DropdownMenu] workspaceId:', workspaceId);
 
   const leaveWorkspace = async () => {
     try {

@@ -33,12 +33,10 @@ const WorkspaceInfoSheet: React.FC<Props> = ({ visible, onClose, workspaceName, 
 
 
   useEffect(() => {
-    console.log('WorkspaceInfoSheet visibility prop changed:', visible);
     setIsVisible(visible);
   }, [visible]);
 
   useEffect(() => {
-    console.log('Animation triggered. isVisible:', isVisible);
     if (isVisible) {
       translateY.setValue(screenHeight);
       Animated.spring(translateY, {
@@ -74,7 +72,6 @@ const WorkspaceInfoSheet: React.FC<Props> = ({ visible, onClose, workspaceName, 
           style={{ flex: 1 }}
           activeOpacity={1} 
           onPress={() => {
-            console.log('Overlay pressed, calling onClose');
             onClose();
           }}
         />

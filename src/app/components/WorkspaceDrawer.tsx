@@ -138,7 +138,6 @@ const WorkspaceDrawer: React.FC<Props> = ({
     fetchNotMembers(channel.id);     setAddModalVisible(true);
   };
 
-  console.log(`Using IP Address: ${ipAddress}`);
 
   return (
     <View style={styles.overlay}>

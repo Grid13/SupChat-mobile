@@ -26,9 +26,7 @@ const Header: React.FC<HeaderProps> = ({ name, avatar, onSearchPress }) => {
   const avatarUri = useProfileImage(avatar, token || "") || avatar || "https://ui-avatars.com/api/?name=User";
 
   const handleSearch = () => {
-    console.log('Header: onSearchPress is', typeof onSearchPress);
     if (onSearchPress) { 
-      console.log('Header: calling onSearchPress');
       onSearchPress(); 
       return; 
     }
