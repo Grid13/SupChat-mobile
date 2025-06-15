@@ -38,5 +38,4 @@ yarn-error.*
 app-example
 
 *.api.ts
-hooks/
-store/
+
