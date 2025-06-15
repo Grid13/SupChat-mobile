@@ -13,7 +13,6 @@ import {
   Modal,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { PanGestureHandler, State } from "react-native-gesture-handler";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSelector } from "react-redux";
 import { RootState } from "./store/store";
@@ -33,27 +32,40 @@ import MessageActionsModal from './components/Message/MessageActionsModal';
 import EmojiPicker from "rn-emoji-keyboard";
 import dotenv from "dotenv";
 
+let PanGestureHandler: any = null;
+let State: any = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    const gestureHandler = require('react-native-gesture-handler');
+    PanGestureHandler = gestureHandler.PanGestureHandler;
+    State = gestureHandler.State;
+  } catch (error) {
+    console.warn('react-native-gesture-handler not available');
+  }
+}
+
 const ipAddress = process.env.EXPO_PUBLIC_IP_ADDRESS;
 
 type MessageItem =
-  | { type: "separator"; label: string }
-  | {
-      type: "message";
-      id: number;
-      text: string;
-      time: string;
-      isSender: boolean;
-      senderId: number;
-      parentId?: number;
-      parentText?: string | null; // Ajout de la propriété parentText
-      attachments?: string[];
-      reactions?: Array<{
-        id: number;
-        content: string;
-        messageId: number;
-        senderId: number;
-      }>;
-    };
+    | { type: "separator"; label: string }
+    | {
+  type: "message";
+  id: number;
+  text: string;
+  time: string;
+  isSender: boolean;
+  senderId: number;
+  parentId?: number;
+  parentText?: string | null;
+  attachments?: string[];
+  reactions?: Array<{
+    id: number;
+    content: string;
+    messageId: number;
+    senderId: number;
+  }>;
+};
 
 const WorkspaceChat: React.FC = () => {
   const router = useRouter();
@@ -61,7 +73,7 @@ const WorkspaceChat: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { id, name, avatar } = useLocalSearchParams();
   const token = useSelector((state: RootState) => state.auth.token);
-  const { connection } = useSocket(); // Use SocketProvider for connection
+  const { connection } = useSocket();
 
   const [channels, setChannels] = useState<Channel[]>([]);
   const [channelsLoading, setChannelsLoading] = useState(true);
@@ -72,12 +84,8 @@ const WorkspaceChat: React.FC = () => {
   const [infoVisible, setInfoVisible] = useState(false);
   const [navDrawerVisible, setNavDrawerVisible] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
-  const [replyTo, setReplyTo] = useState<{ id: number; text: string } | null>(
-    null
-  );
-  const [editing, setEditing] = useState<{ id: number; text: string } | null>(
-    null
-  );
+  const [replyTo, setReplyTo] = useState<{ id: number; text: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: number; text: string } | null>(null);
   const [messageDrawerVisible, setMessageDrawerVisible] = useState(false);
   const [drawerMessage, setDrawerMessage] = useState<{
     id: number;
@@ -86,29 +94,27 @@ const WorkspaceChat: React.FC = () => {
   } | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  // Compute workspaceAvatar using profile picture if available
   let workspaceAvatarUrl =
-    typeof avatar === "string" && avatar
-      ? avatar
-      : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-          name as string || "Workspace"
-        )}`;
+      typeof avatar === "string" && avatar
+          ? avatar
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              name as string || "Workspace"
+          )}`;
   const tokenStr = token || "";
   const avatarBase64 = useProfileImage(
-    workspaceAvatarUrl.startsWith(`http://${ipAddress}:5263/api/Attachment/`)
-      ? workspaceAvatarUrl
-      : undefined,
-    tokenStr
+      workspaceAvatarUrl.startsWith(`http://${ipAddress}:5263/api/Attachment/`)
+          ? workspaceAvatarUrl
+          : undefined,
+      tokenStr
   );
   const workspaceAvatar = avatarBase64 || workspaceAvatarUrl;
 
-  // Fetch channels
   const fetchChannels = useCallback(async () => {
     setChannelsLoading(true);
     try {
       const res = await fetch(
-        `http://${ipAddress}:5263/api/Workspace/${id}/Channels`,
-        { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } }
+          `http://${ipAddress}:5263/api/Workspace/${id}/Channels`,
+          { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } }
       );
       const txt = await res.text();
       let json: any = [];
@@ -116,12 +122,12 @@ const WorkspaceChat: React.FC = () => {
         json = JSON.parse(txt);
       } catch {}
       const list: Channel[] = Array.isArray(json)
-        ? json
-        : Array.isArray(json.value)
-        ? json.value
-        : Array.isArray(json.valueOrDefault)
-        ? json.valueOrDefault
-        : [];
+          ? json
+          : Array.isArray(json.value)
+              ? json.value
+              : Array.isArray(json.valueOrDefault)
+                  ? json.valueOrDefault
+                  : [];
       setChannels(list);
       if (!selectedChannel && list.length) setSelectedChannel(list[0]);
     } catch (err) {
@@ -140,114 +146,118 @@ const WorkspaceChat: React.FC = () => {
   };
 
   const onHandlerStateChange = ({ nativeEvent }: any) => {
-    if (nativeEvent.state === State.END) {
+    if (nativeEvent.state === State?.END) {
       if (nativeEvent.translationX > 20) setNavDrawerVisible(true);
       if (nativeEvent.translationX < -20) setNavDrawerVisible(false);
     }
+  };
+
+  const toggleNavDrawer = () => {
+    setNavDrawerVisible(!navDrawerVisible);
   };
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);
     if (!isNaN(d.getTime())) {
       return `${d.getHours().toString().padStart(2, "0")}h${d
-        .getMinutes()
-        .toString()
-        .padStart(2, "0")}`;
+          .getMinutes()
+          .toString()
+          .padStart(2, "0")}`;
     }
     return "--:--";
   };
 
   const formatDay = (iso: string) =>
-    format(new Date(iso), "d MMMM yyyy", { locale: fr });
+      format(new Date(iso), "d MMMM yyyy", { locale: fr });
 
   // Fetch messages with parent text
   const fetchMessages = useCallback(async () => {
-  setMessagesLoading(true);
-  try {
-    if (!selectedChannel) {
-      return;
-    }
-
-    const res = await fetch(
-      `http://${ipAddress}:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`,
-      {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+    setMessagesLoading(true);
+    try {
+      if (!selectedChannel) {
+        return;
       }
-    );
 
-    const arr: any[] = await res.json();
+      const res = await fetch(
+          `http://${ipAddress}:5263/api/Message/ByChannel?channelId=${selectedChannel.id}&pageNumber=1&pageSize=50`,
+          {
+            headers: {
+              Accept: "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+      );
 
-    const grouped: MessageItem[] = [];
-    let currLabel: string | null = null;
-    let dayMsgs: MessageItem[] = [];
+      const arr: any[] = await res.json();
 
-    arr.sort(
-      (a, b) => new Date(a.sendDate).getTime() - new Date(b.sendDate).getTime()
-    );
+      const grouped: MessageItem[] = [];
+      let currLabel: string | null = null;
+      let dayMsgs: MessageItem[] = [];
 
-    for (const m of arr) {
-      const label = formatDay(m.sendDate);
-      if (currLabel && label !== currLabel) {
+      arr.sort(
+          (a, b) => new Date(a.sendDate).getTime() - new Date(b.sendDate).getTime()
+      );
+
+      for (const m of arr) {
+        const label = formatDay(m.sendDate);
+        if (currLabel && label !== currLabel) {
+          grouped.push({ type: "separator", label: currLabel });
+          grouped.push(...dayMsgs);
+          dayMsgs = [];
+        }
+        currLabel = label;
+
+        let parentText = null;
+        if (m.parentId) {
+          try {
+            const parentRes = await fetch(
+                `http://${ipAddress}:5263/api/Message/${m.parentId}`,
+                {
+                  headers: {
+                    Accept: "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+            );
+            if (parentRes.ok) {
+              const parentData = await parentRes.json();
+              parentText = parentData.content;
+            }
+          } catch (e) {
+            console.warn(`[ParentFetch] Failed to fetch parent message ${m.parentId}`);
+          }
+        }
+
+        const attachments = m.messageAttachments?.map((att: { attachmentId: string }) => {
+          const url: string = `http://${ipAddress}:5263/api/Attachment/${att.attachmentId}`;
+          return url;
+        }) || [];
+
+        dayMsgs.push({
+          type: "message",
+          id: m.id,
+          text: m.content,
+          time: formatTime(m.sendDate),
+          isSender: m.senderId === userId,
+          senderId: m.senderId,
+          parentId: m.parentId,
+          parentText,
+          attachments: attachments.filter((url: string | null): url is string => url !== null),
+        });
+      }
+
+      if (dayMsgs.length && currLabel) {
         grouped.push({ type: "separator", label: currLabel });
         grouped.push(...dayMsgs);
-        dayMsgs = [];
-      }
-      currLabel = label;
-
-      let parentText = null;
-      if (m.parentId) {
-        try {
-          const parentRes = await fetch(
-            `http://${ipAddress}:5263/api/Message/${m.parentId}`,
-            {
-              headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-          if (parentRes.ok) {
-            const parentData = await parentRes.json();
-            parentText = parentData.content;
-          }
-        } catch (e) {
-          console.warn(`[ParentFetch] Failed to fetch parent message ${m.parentId}`);
-        }
       }
 
-      const attachments = m.messageAttachments?.map((att: { attachmentId: string }) => {
-        const url: string = `http://${ipAddress}:5263/api/Attachment/${att.attachmentId}`;
-        return url;
-      }) || [];
-
-      dayMsgs.push({
-        type: "message",
-        id: m.id,
-        text: m.content,
-        time: formatTime(m.sendDate),
-        isSender: m.senderId === userId,
-        senderId: m.senderId,
-        parentId: m.parentId,
-        parentText,
-        attachments: attachments.filter((url: string | null): url is string => url !== null),
-      });
+      setMessages(grouped);
+    } catch (e: any) {
+      Alert.alert("Erreur", e.message);
+    } finally {
+      setMessagesLoading(false);
     }
-
-    if (dayMsgs.length && currLabel) {
-      grouped.push({ type: "separator", label: currLabel });
-      grouped.push(...dayMsgs);
-    }
-
-    setMessages(grouped);
-  } catch (e: any) {
-    Alert.alert("Erreur", e.message);
-  } finally {
-    setMessagesLoading(false);
-  }
-}, [selectedChannel, token, userId]);
+  }, [selectedChannel, token, userId]);
 
   useEffect(() => {
     if (selectedChannel) fetchMessages();
@@ -276,29 +286,28 @@ const WorkspaceChat: React.FC = () => {
       }
 
       const res = await fetch(
-        `http://${ipAddress}:5263/api/Message/PostInChannel`,
-        {
-          method: "POST",
-          headers:
-            {
+          `http://${ipAddress}:5263/api/Message/PostInChannel`,
+          {
+            method: "POST",
+            headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-          body: JSON.stringify(body),
-        }
+            body: JSON.stringify(body),
+          }
       );
       const returned = await res.json();
       if (res.ok) {
         let parentText = null;
         if (returned.parentId) {
           const parentRes = await fetch(
-            `http://${ipAddress}:5263/api/Message/${returned.parentId}`,
-            {
-              headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            }
+              `http://${ipAddress}:5263/api/Message/${returned.parentId}`,
+              {
+                headers: {
+                  Accept: "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+              }
           );
           if (parentRes.ok) {
             const parentData = await parentRes.json();
@@ -331,7 +340,7 @@ const WorkspaceChat: React.FC = () => {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission refusée", "Autorisez l’accès aux photos.");
+      Alert.alert("Permission refusée", "Autorisez l'accès aux photos.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -349,15 +358,15 @@ const WorkspaceChat: React.FC = () => {
 
     try {
       const up = await fetch(
-        `http://${ipAddress}:5263/api/Attachment?attachmentType=Image`,
-        {
-          method: "POST",
-          headers: {
-            Accept: "text/plain",
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
+          `http://${ipAddress}:5263/api/Attachment?attachmentType=Image`,
+          {
+            method: "POST",
+            headers: {
+              Accept: "text/plain",
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          }
       );
       if (!up.ok) throw new Error(`Upload failed ${up.status}`);
       const { id: attachmentId } = await up.json();
@@ -372,28 +381,28 @@ const WorkspaceChat: React.FC = () => {
     if (replyTo) body.parentId = replyTo.id;
     try {
       const res = await fetch(
-        `http://${ipAddress}:5263/api/Message/PostInChannel`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(body),
-        }
+          `http://${ipAddress}:5263/api/Message/PostInChannel`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+          }
       );
       if (res.ok) {
         const msg = await res.json();
         let parentText = null;
         if (msg.parentId) {
           const parentRes = await fetch(
-            `http://${ipAddress}:5263/api/Message/${msg.parentId}`,
-            {
-              headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            }
+              `http://${ipAddress}:5263/api/Message/${msg.parentId}`,
+              {
+                headers: {
+                  Accept: "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+              }
           );
           if (parentRes.ok) {
             const parentData = await parentRes.json();
@@ -425,9 +434,9 @@ const WorkspaceChat: React.FC = () => {
   };
 
   const onMessageLongPress = (
-    msgId: number,
-    msgText: string,
-    isSender: boolean
+      msgId: number,
+      msgText: string,
+      isSender: boolean
   ) => {
     setDrawerMessage({ id: msgId, text: msgText, isSender });
     setMessageDrawerVisible(true);
@@ -462,22 +471,22 @@ const WorkspaceChat: React.FC = () => {
   const deleteMessage = async (msgId: number) => {
     try {
       const res = await fetch(
-        `http://${ipAddress}:5263/api/Message/${msgId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+          `http://${ipAddress}:5263/api/Message/${msgId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
       );
       if (res.ok) {
         setMessages((prev) =>
-          prev.filter((m) => !(m.type === "message" && m.id === msgId))
+            prev.filter((m) => !(m.type === "message" && m.id === msgId))
         );
       } else {
         Alert.alert(
-          "Erreur serveur",
-          `Impossible de supprimer (status ${res.status})`
+            "Erreur serveur",
+            `Impossible de supprimer (status ${res.status})`
         );
       }
     } catch (e: any) {
@@ -490,30 +499,30 @@ const WorkspaceChat: React.FC = () => {
     const msgId = editing.id;
     try {
       const res = await fetch(
-        `http://${ipAddress}:5263/api/Message/${msgId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ content: newText }),
-        }
+          `http://${ipAddress}:5263/api/Message/${msgId}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ content: newText }),
+          }
       );
       if (res.ok) {
         setMessages((prev) =>
-          prev.map((m) => {
-            if (m.type === "message" && m.id === msgId) {
-              return { ...m, text: newText };
-            }
-            return m;
-          })
+            prev.map((m) => {
+              if (m.type === "message" && m.id === msgId) {
+                return { ...m, text: newText };
+              }
+              return m;
+            })
         );
         setEditing(null);
       } else {
         Alert.alert(
-          "Erreur serveur",
-          `Impossible de modifier (code ${res.status})`
+            "Erreur serveur",
+            `Impossible de modifier (code ${res.status})`
         );
       }
     } catch (e: any) {
@@ -554,15 +563,15 @@ const WorkspaceChat: React.FC = () => {
         const reactionData = JSON.parse(responseText);
 
         setMessages((prev) =>
-          prev.map((m) => {
-            if (m.type === "message" && m.id === drawerMessage.id) {
-              return {
-                ...m,
-                reactions: [...(m.reactions || []), reactionData],
-              };
-            }
-            return m;
-          })
+            prev.map((m) => {
+              if (m.type === "message" && m.id === drawerMessage.id) {
+                return {
+                  ...m,
+                  reactions: [...(m.reactions || []), reactionData],
+                };
+              }
+              return m;
+            })
         );
       } catch (e: any) {
         Alert.alert("Erreur", e.message || "Une erreur est survenue.");
@@ -574,80 +583,79 @@ const WorkspaceChat: React.FC = () => {
 
   // Ajoute le message reçu via SignalR dans la liste
   const handleReceiveSocket = useCallback(
-    (msg: any) => {
-      if (!selectedChannel || msg.channelId !== selectedChannel.id) return;
+      (msg: any) => {
+        if (!selectedChannel || msg.channelId !== selectedChannel.id) return;
 
-      setMessages((prev) => {
-        if (prev.some((m) => m.type === "message" && m.id === msg.id)) {
-          return prev;
-        }
+        setMessages((prev) => {
+          if (prev.some((m) => m.type === "message" && m.id === msg.id)) {
+            return prev;
+          }
 
-        const day = format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr });
-        const time = `${new Date(msg.sendDate).getHours().toString().padStart(2, "0")}h${new Date(
-          msg.sendDate
-        ).getMinutes().toString().padStart(2, "0")}`;
+          const day = format(new Date(msg.sendDate), "d MMMM yyyy", { locale: fr });
+          const time = `${new Date(msg.sendDate).getHours().toString().padStart(2, "0")}h${new Date(
+              msg.sendDate
+          ).getMinutes().toString().padStart(2, "0")}`;
 
-        const copy = [...prev];
-        if (!copy.find((m) => m.type === "separator" && m.label === day)) {
-          copy.push({ type: "separator", label: day });
-        }
-        copy.push({
-          type: "message",
-          id: msg.id,
-          text: msg.content,
-          time,
-          isSender: msg.senderId === userId,
-          senderId: msg.senderId,
-          parentId: msg.parentId,
-          attachments: msg.messageAttachments?.map((att: any) => att.attachmentId) || [],
+          const copy = [...prev];
+          if (!copy.find((m) => m.type === "separator" && m.label === day)) {
+            copy.push({ type: "separator", label: day });
+          }
+          copy.push({
+            type: "message",
+            id: msg.id,
+            text: msg.content,
+            time,
+            isSender: msg.senderId === userId,
+            senderId: msg.senderId,
+            parentId: msg.parentId,
+            attachments: msg.messageAttachments?.map((att: any) => att.attachmentId) || [],
+          });
+          return copy;
         });
-        return copy;
-      });
-    },
-    [selectedChannel, userId]
+      },
+      [selectedChannel, userId]
   );
 
   const handleUpdate = useCallback(
-    (updated: any) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.type === "message" && msg.id === updated.id
-            ? { ...msg, text: updated.content }
-            : msg
-        )
-      );
-    },
-    []
+      (updated: any) => {
+        setMessages((prev) =>
+            prev.map((msg) =>
+                msg.type === "message" && msg.id === updated.id
+                    ? { ...msg, text: updated.content }
+                    : msg
+            )
+        );
+      },
+      []
   );
 
   const handleDelete = useCallback(
-    (id: number) => {
-      setMessages((prev) =>
-        prev.filter((msg) => !(msg.type === "message" && msg.id === id))
-      );
-    },
-    []
+      (id: number) => {
+        setMessages((prev) =>
+            prev.filter((msg) => !(msg.type === "message" && msg.id === id))
+        );
+      },
+      []
   );
 
   useChannelSocket({
     connection,
     channelId: selectedChannel?.id ?? 0,
     onReceive: handleReceiveSocket,
-    onUpdate: handleUpdate, // Ensure handleUpdate is used
-    onDelete: handleDelete, // Ensure handleDelete is used
+    onUpdate: handleUpdate,
+    onDelete: handleDelete,
     token: token || "",
   });
 
-  return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-      <PanGestureHandler onHandlerStateChange={onHandlerStateChange} activeOffsetX={10}>
-        <KeyboardAvoidingView
+  // Composant principal avec gestion conditionnelle des gestes
+  const renderMainContent = () => (
+      <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={0}
-        >
-          <View style={styles.container}>
-            <WorkspaceDrawer
+      >
+        <View style={styles.container}>
+          <WorkspaceDrawer
               visible={navDrawerVisible}
               onClose={() => setNavDrawerVisible(false)}
               onChannelPress={(ch) => {
@@ -660,82 +668,88 @@ const WorkspaceChat: React.FC = () => {
               loading={channelsLoading}
               selectedChannelId={selectedChannel?.id}
               onChannelCreated={fetchChannels}
-            />
-            <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()}>
-                <Ionicons name="arrow-back" size={24} />
-              </TouchableOpacity>
-              <TouchableOpacity
+          />
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} />
+            </TouchableOpacity>
+
+            {/* Bouton menu hamburger pour le web */}
+            {Platform.OS === 'web' && (
+                <TouchableOpacity onPress={toggleNavDrawer} style={{ marginRight: 12 }}>
+                  <Ionicons name="menu" size={24} />
+                </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
                 onPress={handleAvatarPress}
                 activeOpacity={0.7}
                 style={{ padding: 5 }}
-              >
-                <Image source={{ uri: workspaceAvatar }} style={styles.avatar} />
-              </TouchableOpacity>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{name}</Text>
-                <Text style={styles.channelName}>
-                  {selectedChannel?.name || "Choisir un channel"}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ marginLeft: 10 }}>
-                <MaterialIcons name="more-vert" size={22} />
-              </TouchableOpacity>
+            >
+              <Image source={{ uri: workspaceAvatar }} style={styles.avatar} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>{name}</Text>
+              <Text style={styles.channelName}>
+                {selectedChannel?.name || "Choisir un channel"}
+              </Text>
             </View>
-            <WorkspaceInfoSheet
+            <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ marginLeft: 10 }}>
+              <MaterialIcons name="more-vert" size={22} />
+            </TouchableOpacity>
+          </View>
+          <WorkspaceInfoSheet
               visible={infoVisible}
               onClose={() => setInfoVisible(false)}
               workspaceName={typeof name === "string" ? name : ""}
               workspaceId={Number(id)}
-            />
-            <DropdownMenu
+          />
+          <DropdownMenu
               visible={menuVisible}
               onClose={() => setMenuVisible(false)}
               workspaceId={Number(id)}
-            />
-            <ScrollView
+          />
+          <ScrollView
               ref={scrollViewRef}
               contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
               keyboardShouldPersistTaps="handled"
-            >
-              {messagesLoading ? (
+          >
+            {messagesLoading ? (
                 <Text style={styles.loadingText}>Chargement…</Text>
-              ) : (
-                // Deduplicate messages by filtering out entries with duplicate IDs
+            ) : (
                 [...new Map(messages.map((msg) => [msg.type === "message" ? msg.id : `${msg.type}-${msg.label}`, msg])).values()].map((msg, i) => {
                   if (msg.type === "separator") {
                     return (
-                      <View key={`separator-${i}`} style={styles.separatorContainer}>
-                        <View style={styles.line} />
-                        <Text style={styles.separatorText}>{msg.label}</Text>
-                        <View style={styles.line} />
-                      </View>
+                        <View key={`separator-${i}`} style={styles.separatorContainer}>
+                          <View style={styles.line} />
+                          <Text style={styles.separatorText}>{msg.label}</Text>
+                          <View style={styles.line} />
+                        </View>
                     );
                   } else if (msg.type === "message") {
                     return (
-                      <MessageBubble
-                        key={`message-${msg.id}`} // Ensure unique keys by prefixing with "message-"
-                        {...msg}
-                        onLongPress={() =>
-                          onMessageLongPress(msg.id, msg.text, msg.isSender)
-                        }
-                      />
+                        <MessageBubble
+                            key={`message-${msg.id}`}
+                            {...msg}
+                            onLongPress={() =>
+                                onMessageLongPress(msg.id, msg.text, msg.isSender)
+                            }
+                        />
                     );
                   }
                 })
-              )}
-            
-            </ScrollView>
-            <ChatInput
+            )}
+          </ScrollView>
+          <ChatInput
               onSend={handleSend}
-              onPickImage={pickImage} // Ajout de la gestion de l'envoi d'image
+              onPickImage={pickImage}
               replyTo={replyTo}
               onCancelReply={() => setReplyTo(null)}
               editing={editing}
               onSaveEdit={(text) => saveEditedMessage(text)}
               onCancelEdit={() => setEditing(null)}
-            />
-            <MessageActionsModal
+          />
+          <MessageActionsModal
               visible={messageDrawerVisible}
               onClose={onCancelFromDrawer}
               onReply={onReplyFromDrawer}
@@ -743,8 +757,8 @@ const WorkspaceChat: React.FC = () => {
               onDelete={onDeleteFromDrawer}
               onReaction={() => setShowEmojiPicker(true)}
               showEditDelete={drawerMessage?.isSender}
-            />
-            <EmojiPicker
+          />
+          <EmojiPicker
               onEmojiSelected={(emoji) => {
                 setShowEmojiPicker(false);
                 if (drawerMessage) {
@@ -753,11 +767,21 @@ const WorkspaceChat: React.FC = () => {
               }}
               open={showEmojiPicker}
               onClose={() => setShowEmojiPicker(false)}
-            />
-          </View>
-        </KeyboardAvoidingView>
-      </PanGestureHandler>
-    </SafeAreaView>
+          />
+        </View>
+      </KeyboardAvoidingView>
+  );
+
+  return (
+      <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+        {Platform.OS !== 'web' && PanGestureHandler ? (
+            <PanGestureHandler onHandlerStateChange={onHandlerStateChange} activeOffsetX={10}>
+              {renderMainContent()}
+            </PanGestureHandler>
+        ) : (
+            renderMainContent()
+        )}
+      </SafeAreaView>
   );
 };
 
