@@ -27,27 +27,65 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [emailError, setEmailError] = useState(false);
+  const [passwordError, setPasswordError] = useState(false);
+  const [confirmError, setConfirmError] = useState(false);
+  const [errors, setErrors] = useState({ userName: "", email: "", password: "", confirm: "" });
 
   useEffect(() => {
-    const randomUserName = `user_${Math.floor(Math.random() * 10000)}`;
-    const randomEmail = `test_${Math.floor(Math.random() * 10000)}@example.com`;
-    const randomPassword = `Pass${Math.floor(Math.random() * 10000)}!`;
-
-    setUserName(randomUserName);
-    setEmail(randomEmail);
-    setPassword(randomPassword);
-    setConfirm(randomPassword);
+    setUserName("");
+    setEmail("");
+    setPassword("");
+    setConfirm("");
   }, []);
 
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateFields = () => {
+    const newErrors = { userName: "", email: "", password: "", confirm: "" };
+
+    if (!userName) newErrors.userName = "Le nom d'utilisateur est requis.";
+    if (!email) {
+      newErrors.email = "L'email est requis.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = "L'email n'est pas valide.";
+    }
+    if (!password) {
+      newErrors.password = "Le mot de passe est requis.";
+    } else if (password.length < 8 || !/[A-Z]/.test(password) || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      newErrors.password = "Le mot de passe doit contenir au moins 8 caractères, une majuscule et un caractère spécial.";
+    }
+    if (!confirm) {
+      newErrors.confirm = "La confirmation du mot de passe est requise.";
+    } else if (password !== confirm) {
+      newErrors.confirm = "Les mots de passe ne correspondent pas.";
+    }
+
+    setErrors(newErrors);
+
+    return Object.values(newErrors).every((error) => error === "");
+  };
+
   const handleRegister = async () => {
-    if (!userName || !email || !password || !confirm) {
-      Alert.alert("Champs manquants", "Veuillez remplir tous les champs.");
-      return;
-    }
-    if (password !== confirm) {
-      Alert.alert("Mot de passe différent", "Les mots de passe ne correspondent pas.");
-      return;
-    }
+    setErrorMessage("");
+    setEmailError(false);
+    setPasswordError(false);
+    setConfirmError(false);
+
+    const newErrors = { userName: "", email: "", password: "", confirm: "" };
+
+    if (!userName) newErrors.userName = "Le nom d'utilisateur est requis.";
+    if (!email) newErrors.email = "L'email est requis.";
+    if (!password) newErrors.password = "Le mot de passe est requis.";
+    if (!confirm) newErrors.confirm = "La confirmation du mot de passe est requise.";
+
+    setErrors(newErrors);
+
+    if (!validateFields()) return;
 
     try {
       const body = {
@@ -81,7 +119,7 @@ const Register = () => {
 
         const loginText = await loginResponse.text();
 
-        if (!loginResponse.ok) throw new Error("\u00c9chec de la connexion apr\u00e8s l'inscription.");
+        if (!loginResponse.ok) throw new Error("Échec de la connexion après l'inscription.");
 
         const loginData = JSON.parse(loginText);
         const token = loginData?.accessToken;
@@ -90,8 +128,11 @@ const Register = () => {
           dispatch(loginSuccess({ user: { email }, token }));
           router.push("/(tabs)/Chat");
         } else {
-          throw new Error("\u00c9chec de la r\u00e9cup\u00e9ration du token apr\u00e8s l'inscription.");
+          throw new Error("Échec de la récupération du token après l'inscription.");
         }
+      } else if (response.status === 409) {
+        const errorData = await response.json();
+        setErrorMessage(errorData.detail || "Une erreur est survenue.");
       } else {
         const errorText = await response.text();
         Alert.alert("Erreur d'inscription", errorText || "Une erreur est survenue.");
@@ -145,39 +186,59 @@ const Register = () => {
           </TouchableOpacity>
         </View>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.userName ? { borderColor: "red" } : {}]}
           placeholder="Username"
           value={userName}
           autoCapitalize="none"
-          onChangeText={setUserName}
+          onChangeText={(text) => {
+            setUserName(text);
+            setErrors((prev) => ({ ...prev, userName: "" }));
+          }}
         />
+        {errors.userName && <Text style={styles.errorText}>{errors.userName}</Text>}
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.email ? { borderColor: "red" } : {}]}
           placeholder="Email"
           value={email}
           autoCapitalize="none"
           keyboardType="email-address"
-          onChangeText={setEmail}
+          onChangeText={(text) => {
+            setEmail(text);
+            setErrors((prev) => ({ ...prev, email: "" }));
+          }}
         />
+        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.password ? { borderColor: "red" } : {}]}
           placeholder="Password"
           secureTextEntry
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(text) => {
+            setPassword(text);
+            setErrors((prev) => ({ ...prev, password: "" }));
+          }}
         />
+        {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.confirm ? { borderColor: "red" } : {}]}
           placeholder="Confirm Password"
           secureTextEntry
           value={confirm}
-          onChangeText={setConfirm}
+          onChangeText={(text) => {
+            setConfirm(text);
+            setErrors((prev) => ({ ...prev, confirm: "" }));
+          }}
         />
+        {errors.confirm && <Text style={styles.errorText}>{errors.confirm}</Text>}
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleRegister}>
           <Text style={styles.primaryButtonText}>CREATE ACCOUNT</Text>
         </TouchableOpacity>
+
+        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
         <View style={styles.divider}>
           <View style={styles.line} />
@@ -251,6 +312,9 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 12,
   },
+  inputError: {
+    borderColor: "red",
+  },
   primaryButton: {
     backgroundColor: "#6B8AFD",
     padding: 14,
@@ -300,5 +364,10 @@ const styles = StyleSheet.create({
   socialText: {
     color: "#000",
     fontWeight: "600",
+  },
+  errorText: {
+    color: "red",
+    fontSize: 12,
+    marginBottom: 8,
   },
 });

@@ -8,7 +8,6 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useDispatch } from "react-redux";
@@ -24,14 +23,34 @@ const Login = () => {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const [email, setEmail] = useState("admin@supchat.com");
-  const [password, setPassword] = useState("Soleil123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [emailError, setEmailError] = useState(false);
+  const [passwordError, setPasswordError] = useState(false);
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
   const handleLogin = async () => {
+    setErrorMessage("");
+    setEmailError(false);
+    setPasswordError(false);
+
     if (!email || !password) {
-      Alert.alert("Missing Fields", "Please enter both email and password.");
+      setErrorMessage("Please enter both email and password.");
+      setEmailError(!email);
+      setPasswordError(!password);
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setErrorMessage("Please enter a valid email address.");
+      setEmailError(true);
       return;
     }
 
@@ -46,26 +65,28 @@ const Login = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "text/plain",
+          Accept: "application/json",
         },
         body: formBody.toString(),
       });
 
-      const text = await response.text();
+      const data = await response.json();
 
-      if (!response.ok) throw new Error("Server error: " + response.status);
+      if (!response.ok) {
+        setErrorMessage(data.detail || "Unexpected error");
+        return;
+      }
 
-      const data = JSON.parse(text);
       const token = data?.accessToken;
 
       if (token) {
         dispatch(loginSuccess({ user: { email }, token }));
         router.push("/(tabs)/Chat");
       } else {
-        throw new Error("Invalid credentials.");
+        setErrorMessage("Invalid credentials.");
       }
     } catch (error: any) {
-      Alert.alert("Login Error", error.message || "Unexpected error");
+      setErrorMessage(error.message || "Unexpected error");
     } finally {
       setLoading(false);
     }
@@ -88,13 +109,13 @@ const Login = () => {
           dispatch(loginSuccess({ user: { email: "github_user" }, token }));
           router.push("/(tabs)/Chat");
         } else {
-          Alert.alert("GitHub Login", "No token found in response.");
+          setErrorMessage("No token found in response.");
         }
       } else {
-        Alert.alert("GitHub Login", "Authentication cancelled or failed.");
+        setErrorMessage("Authentication cancelled or failed.");
       }
     } catch (error: any) {
-      Alert.alert("GitHub Auth Error", error.message);
+      setErrorMessage(error.message);
     }
   };
 
@@ -114,7 +135,7 @@ const Login = () => {
         </View>
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, emailError && styles.inputError]}
           placeholder="Email"
           value={email}
           autoCapitalize="none"
@@ -122,7 +143,7 @@ const Login = () => {
           onChangeText={setEmail}
         />
         <TextInput
-          style={styles.input}
+          style={[styles.input, passwordError && styles.inputError]}
           placeholder="Password"
           secureTextEntry
           value={password}
@@ -137,6 +158,10 @@ const Login = () => {
         <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} disabled={loading}>
           <Text style={styles.primaryButtonText}>{loading ? "Loading..." : "CONTINUE"}</Text>
         </TouchableOpacity>
+
+        {errorMessage ? (
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        ) : null}
 
         <View style={styles.divider}>
           <View style={styles.line} />
@@ -210,6 +235,9 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 12,
   },
+  inputError: {
+    borderColor: "red",
+  },
   rememberRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -268,5 +296,10 @@ const styles = StyleSheet.create({
   socialText: {
     color: "#000",
     fontWeight: "600",
+  },
+  errorText: {
+    color: "red",
+    marginBottom: 12,
+    textAlign: "center",
   },
 });
